@@ -1,7 +1,7 @@
 # IRIS — Current Status
 
-**Current stage:** Milestone 4 Complete — Ready for Milestone 5/6  
-**Current focus:** Vector embedding generation and incremental indexing.
+**Current stage:** Milestone 10 Complete  
+**Current focus:** Evaluation, hardening, and next milestone planning.
 
 ## Completed
 - [x] Project purpose and initial scope agreed.
@@ -95,9 +95,20 @@
   - Development CORS middleware configured for React frontend integration.
   - Added unit test suite in `tests/test_api.py` (17/17 passed).
   - Total test suite: **110/110 passed**.
+- [x] **Milestone 10 Completed:**
+  - Modern, responsive React + TypeScript frontend built with Vite under `frontend/`.
+  - Minimalist academic visual identity with deep navy/slate palette, clear typography, generous whitespace, and restrained semantic statuses.
+  - Welcome screen with PEC corpus-grounded suggested questions (Cloud Computing, Deep Learning, Senate attendance regulations).
+  - Dedicated API service layer (`frontend/src/services/api.ts`) connecting to `POST /chat` and `GET /health` with safe error mapping.
+  - Three public response status renderers: `answered` (safe markdown prose + verified citations), `clarification_needed` (amber continuation prompt), and `handoff_recommended` (institutional office recommendation + advisory disclaimer).
+  - Citation component with document filenames, page ranges, section titles, and expandable grounded claim details (no fake URLs).
+  - Multiline composer with Enter-to-send, Shift+Enter newline, and 1000-character limit feedback.
+  - Real-time connection status badge (Connected, Disconnected, Checking).
+  - Vitest + React Testing Library test suite in `frontend/src/test/`: **36/36 passed**.
+  - Production build verified with `npm run build` (0 TypeScript / bundling errors).
 
 ## Current milestone
-**M9 Completed — Merged into main**
+**M10 Completed — Merged into main**
 
 ## Corpus Chunk Summary in Database
 | Document | Pages | Total Chunks | Avg Tokens | Multi-Page Chunks | Table Chunks | Embeddings |
