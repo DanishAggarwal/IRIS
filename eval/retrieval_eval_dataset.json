@@ -1,0 +1,438 @@
+{
+  "version": "1.0",
+  "description": "Curated retrieval evaluation dataset for IRIS Milestone 7 grounded directly in the 3 corpus documents.",
+  "total_questions": 30,
+  "answerable_count": 25,
+  "unanswerable_count": 5,
+  "questions": [
+    {
+      "id": "Q01",
+      "category": "syllabus_structure_and_course_objectives",
+      "query": "What are the course objectives of Cloud Computing in the CSE syllabus?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [117, 117],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [117, 117]}
+      ],
+      "expected_section": "Course Objectives:",
+      "relevant_chunk_index": 101,
+      "relevance_explanation": "Contains the four bulleted course objectives for Cloud Computing covering cloud infrastructure security, delivery models, risk and compliance, and service delivery challenges."
+    },
+    {
+      "id": "Q02",
+      "category": "syllabus_structure_and_course_objectives",
+      "query": "What are the course objectives for Deep Learning in the semester course handout?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf",
+      "expected_pages": [33, 34],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [33, 34]}
+      ],
+      "expected_section": "Course Objectives:",
+      "relevant_chunk_index": 32,
+      "relevance_explanation": "Defines student objectives for deep learning fundamentals, model applications, architectures and optimization methods."
+    },
+    {
+      "id": "Q03",
+      "category": "syllabus_structure_and_course_objectives",
+      "query": "What are the course objectives for Computer Networks in the semester handout?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [3, 3],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [3, 3]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [39, 40]}
+      ],
+      "expected_section": "COURSE OBJECTIVES:",
+      "relevant_chunk_index": 2,
+      "relevance_explanation": "Presents specific objectives for understanding computer network concepts, reference models, and network protocols."
+    },
+    {
+      "id": "Q04",
+      "category": "course_codes_and_titles",
+      "query": "What is the course code and credit structure for Modern Data Base Systems open elective?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [5, 9],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [5, 9]}
+      ],
+      "expected_section": "Open Elective-III",
+      "relevant_chunk_index": 2,
+      "relevance_explanation": "Specifies Modern Data Base Systems under course code CSO 1004 with 3-0-2 lecture/tutorial/practical structure and 4 credits."
+    },
+    {
+      "id": "Q05",
+      "category": "course_codes_and_titles",
+      "query": "Which course corresponds to course code DSN 5001?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [8, 8],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [8, 8]}
+      ],
+      "expected_section": "Course Title",
+      "relevant_chunk_index": 10,
+      "relevance_explanation": "Defines course code DSN 5001 as Data Acquisition and Information Retrieval."
+    },
+    {
+      "id": "Q06",
+      "category": "course_codes_and_titles",
+      "query": "What is the course code and title for Analytical Tools for Data Science in the course handout?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [12, 12],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [12, 12]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [19, 19]}
+      ],
+      "expected_section": "Course handout for DSN5002",
+      "relevant_chunk_index": 14,
+      "relevance_explanation": "Identifies DSN5002 / DSM 1003 as Analytical Tools for Data Science."
+    },
+    {
+      "id": "Q07",
+      "category": "course_units_and_topics",
+      "query": "What topics are covered in Unit 1 Introduction to Cloud Computing?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [117, 117],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [117, 117]}
+      ],
+      "expected_section": "Unit 1",
+      "relevant_chunk_index": 101,
+      "relevance_explanation": "Lists Unit 1 topics: Online Social Networks and Applications, Cloud computing overview, Risks and applications of cloud computing."
+    },
+    {
+      "id": "Q08",
+      "category": "course_units_and_topics",
+      "query": "What are the contents of Unit 4 ConvNets in Deep Learning?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf",
+      "expected_pages": [33, 34],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [33, 34]}
+      ],
+      "expected_section": "Unit 4",
+      "relevant_chunk_index": 32,
+      "relevance_explanation": "Details Convolution and pooling operations, Transfer learning, and architectures (AlexNet, ZFNet, VGG, GoogLeNet, ResNet)."
+    },
+    {
+      "id": "Q09",
+      "category": "course_units_and_topics",
+      "query": "What topics are covered in Unit 2 Logistic Regression in Deep Learning?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf",
+      "expected_pages": [33, 34],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [33, 34]}
+      ],
+      "expected_section": "Unit 2",
+      "relevant_chunk_index": 32,
+      "relevance_explanation": "Outlines regression and classification concepts, linear models, maximum likelihood, and logistic regression classifiers."
+    },
+    {
+      "id": "Q10",
+      "category": "dates_semesters_and_academic_sessions",
+      "query": "Which academic batch and session does the B.Tech Computer Science & Engineering syllabus apply to?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [1, 4],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [1, 4]}
+      ],
+      "expected_section": "Department of Computer Science & Engineering",
+      "relevant_chunk_index": 0,
+      "relevance_explanation": "Cover page states '2023 batch onwards' and 'Semester Scheme B.Tech. (CSE) 1st TO 8TH SEMESTER 2023-24 ONWARDS'."
+    },
+    {
+      "id": "Q11",
+      "category": "dates_semesters_and_academic_sessions",
+      "query": "What was the date and agenda item of the Senate meeting that approved the attendance rules?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [7, 8],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [7, 8]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [4, 5]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [7, 8]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [13, 14]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [44, 45]}
+      ],
+      "expected_section": "Course Evaluation Criteria",
+      "relevant_chunk_index": 9,
+      "relevance_explanation": "Records approval by the Senate in its 80th meeting held on 9-5-2019 under agenda item no. 80.14 across the course handouts."
+    },
+    {
+      "id": "Q12",
+      "category": "dates_semesters_and_academic_sessions",
+      "query": "What is the academic session and semester number listed on the cover of the course handout?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf",
+      "expected_pages": [50, 50],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [50, 50]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [1, 2]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [1, 3]}
+      ],
+      "expected_section": "Course handout cover",
+      "relevant_chunk_index": 47,
+      "relevance_explanation": "Explicitly notes 'Course handout (2025-2026) (25261)' and 'Semester 25261'."
+    },
+    {
+      "id": "Q13",
+      "category": "numerical_information_and_weightages",
+      "query": "What are the percentage weightages for Mid-term, Quizzes, Assignments, and End-term in Course Evaluation Criteria?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [7, 8],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [7, 8]}
+      ],
+      "expected_section": "Course Evaluation Criteria",
+      "relevant_chunk_index": 9,
+      "relevance_explanation": "Specifies Mid-term: 25%, Quizzes: 15%, Assignments and Lab Evaluations: 20%, End-term: 40%."
+    },
+    {
+      "id": "Q14",
+      "category": "numerical_information_and_weightages",
+      "query": "How many total lecture hours are scheduled for the Cloud Computing course?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [117, 117],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [117, 117]}
+      ],
+      "expected_section": "Total No. of Lectures",
+      "relevant_chunk_index": 101,
+      "relevance_explanation": "States 'Total No. of Lectures – 42' for Cloud Computing."
+    },
+    {
+      "id": "Q15",
+      "category": "numerical_information_and_weightages",
+      "query": "What are the lecture hours and credit distribution for Calculus in Semester-I?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [1, 4],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [1, 4]},
+        {"document": "CSE_syllabus_24.pdf", "pages": [31, 35]}
+      ],
+      "expected_section": "Semester-I",
+      "relevant_chunk_index": 0,
+      "relevance_explanation": "Lists MA 2301 Calculus with L-T-P of 3-0-2 and 4 credits."
+    },
+    {
+      "id": "Q16",
+      "category": "evaluation_components",
+      "query": "What are the attendance threshold rules for grade lowering in the course handout?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [7, 8],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [7, 8]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [4, 5]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [13, 14]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [44, 45]}
+      ],
+      "expected_section": "Attendance Rules",
+      "relevant_chunk_index": 9,
+      "relevance_explanation": "Defines attendance thresholds: >=75% no lowering; 50% to <75% lowered by one level; <50% lowered by two levels."
+    },
+    {
+      "id": "Q17",
+      "category": "evaluation_components",
+      "query": "What are the makeup examination conditions for mid-term and end-term examinations?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [7, 8],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [7, 8]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [17, 18]}
+      ],
+      "expected_section": "Course Evaluation Criteria",
+      "relevant_chunk_index": 9,
+      "relevance_explanation": "Explains that makeup exam requires DAPC/DAA recommended application supported with required proofs."
+    },
+    {
+      "id": "Q18",
+      "category": "co_po_mappings_and_tables",
+      "query": "What is the scale used for correlation levels in the CO-PO mapping matrix?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [4, 5],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [4, 5]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [41, 42]}
+      ],
+      "expected_section": "CO-PO Mapping",
+      "relevant_chunk_index": 5,
+      "relevance_explanation": "Gives the standard 3-point correlation rating scale: 1-Low, 2-Medium, 3-High."
+    },
+    {
+      "id": "Q19",
+      "category": "co_po_mappings_and_tables",
+      "query": "How are Course Outcomes mapped to Program Outcomes and Program Specific Outcomes in the course pack?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf",
+      "expected_pages": [3, 4],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [3, 4]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [4, 5]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [7, 7]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [41, 41]}
+      ],
+      "expected_section": "Mapping of Course Outcomes",
+      "relevant_chunk_index": 3,
+      "relevance_explanation": "Contains the structured matrix mapping COs to PO1–PO12 and PSO1–PSO2."
+    },
+    {
+      "id": "Q20",
+      "category": "ocr_extracted_content",
+      "query": "What textbook by Galvin and Silberschatz is prescribed for Operating Systems?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [1, 3],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [1, 3]}
+      ],
+      "expected_section": "Text Book:",
+      "relevant_chunk_index": 1,
+      "relevance_explanation": "Prescribes 'Operating system, Galvin & Silberschatz, John Willey' as the primary textbook."
+    },
+    {
+      "id": "Q21",
+      "category": "ocr_extracted_content",
+      "query": "What is the Google Classroom code and instructor email for Course Evaluation Criteria?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf",
+      "expected_pages": [7, 8],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf", "pages": [7, 8]}
+      ],
+      "expected_section": "Note",
+      "relevant_chunk_index": 9,
+      "relevance_explanation": "Lists classroom code '4tummvqn' and instructor email 'kanugoel@pec.edu.in'."
+    },
+    {
+      "id": "Q22",
+      "category": "ocr_extracted_content",
+      "query": "What are the laboratory experiments listed for Deep Learning?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf",
+      "expected_pages": [33, 34],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [33, 34]}
+      ],
+      "expected_section": "List of Experiments:",
+      "relevant_chunk_index": 32,
+      "relevance_explanation": "Lists experiments including Keras/Tensorflow/OpenCV intro, MultiLayer Perceptron, CNN transfer learning, RNN, and project."
+    },
+    {
+      "id": "Q23",
+      "category": "multi_page_context",
+      "query": "What are the core Department Elective Course options listed across Semester VII and VIII?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [4, 6],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [4, 6]}
+      ],
+      "expected_section": "Deptt. Elective Course-V",
+      "relevant_chunk_index": 1,
+      "relevance_explanation": "Summarizes elective offerings like Web Technologies, Mobile Computing, Principles of Programming Languages, Generative AI, AI for Social Good."
+    },
+    {
+      "id": "Q24",
+      "category": "multi_page_context",
+      "query": "What office hours and room locations are specified for visiting instructors?",
+      "answerable": true,
+      "expected_document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf",
+      "expected_pages": [25, 26],
+      "acceptable_sources": [
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [25, 26]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [44, 45]},
+        {"document": "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf", "pages": [52, 53]}
+      ],
+      "expected_section": "Instructor Visit",
+      "relevant_chunk_index": 25,
+      "relevance_explanation": "Instructs students to visit instructor at Room No. 215 or during specified afternoon/morning office hours."
+    },
+    {
+      "id": "Q25",
+      "category": "exact_terminology",
+      "query": "Where are Stackelberg Equilibrium and Security Games applied in the syllabus?",
+      "answerable": true,
+      "expected_document": "CSE_syllabus_24.pdf",
+      "expected_pages": [99, 99],
+      "acceptable_sources": [
+        {"document": "CSE_syllabus_24.pdf", "pages": [99, 99]}
+      ],
+      "expected_section": "Unit 3 GAME THEORY",
+      "relevant_chunk_index": 85,
+      "relevance_explanation": "Details Stackelberg Equilibrium applied in Security Games for Ferry Protection and Ranger Patrol Planning."
+    },
+    {
+      "id": "Q26",
+      "category": "unanswerable",
+      "query": "What are the mess charges and hostel security deposit fees for the academic year?",
+      "answerable": false,
+      "expected_document": null,
+      "expected_pages": null,
+      "acceptable_sources": [],
+      "expected_section": null,
+      "relevant_chunk_index": null,
+      "relevance_explanation": "The corpus consists solely of academic course syllabi and course packs. Hostel fee schedules, room rental tiers, and dining mess deposit amounts are not documented anywhere in these academic documents."
+    },
+    {
+      "id": "Q27",
+      "category": "unanswerable",
+      "query": "What are the opening hours and membership rules for the campus swimming pool?",
+      "answerable": false,
+      "expected_document": null,
+      "expected_pages": null,
+      "acceptable_sources": [],
+      "expected_section": null,
+      "relevant_chunk_index": null,
+      "relevance_explanation": "Campus sports facility operating hours, pool lane reservations, and athletic club bylaws are not part of the academic curriculum corpus."
+    },
+    {
+      "id": "Q28",
+      "category": "unanswerable",
+      "query": "What was the minimum closing cutoff rank in JEE Advanced for Mechanical Engineering?",
+      "answerable": false,
+      "expected_document": null,
+      "expected_pages": null,
+      "acceptable_sources": [],
+      "expected_section": null,
+      "relevant_chunk_index": null,
+      "relevance_explanation": "The corpus is strictly limited to Computer Science & Engineering department documents. Admission cutoffs, opening/closing ranks, and Mechanical Engineering criteria are completely absent."
+    },
+    {
+      "id": "Q29",
+      "category": "unanswerable",
+      "query": "What is the direct office telephone extension and cabin number of the Dean of Student Affairs?",
+      "answerable": false,
+      "expected_document": null,
+      "expected_pages": null,
+      "acceptable_sources": [],
+      "expected_section": null,
+      "relevant_chunk_index": null,
+      "relevance_explanation": "The documents provide course-level faculty office hours and email addresses, but contain no administrative directory, phone extensions, or office allocations for the Dean of Student Affairs."
+    },
+    {
+      "id": "Q30",
+      "category": "unanswerable",
+      "query": "Which CUDA version and GPU driver is required to run PyTorch 2.5 on Ubuntu 24.04?",
+      "answerable": false,
+      "expected_document": null,
+      "expected_pages": null,
+      "acceptable_sources": [],
+      "expected_section": null,
+      "relevant_chunk_index": null,
+      "relevance_explanation": "Course packs mention Python libraries for deep learning conceptually, but contain no third-party hardware setup documentation, NVIDIA driver requirements, or PyTorch 2.5 OS compatibility matrices."
+    }
+  ]
+}

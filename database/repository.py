@@ -483,3 +483,75 @@ def get_chunk_embedding_status(
         "embedded_chunks": embedded,
         "unembedded_chunks": unembedded,
     }
+
+
+# ---------------------------------------------------------------------------
+# Semantic Retrieval helpers
+# ---------------------------------------------------------------------------
+
+MAX_TOP_K = 100
+
+
+def search_similar_chunks(
+    session: Session,
+    query_vector: Sequence[float],
+    top_k: int = 5,
+    embedding_model: Optional[str] = None,
+    embedding_dim: Optional[int] = DEFAULT_EMBEDDING_DIM,
+    document_id: Optional[uuid.UUID] = None,
+) -> list[tuple[DocumentChunk, Document, float]]:
+    """Search for most similar document chunks using pgvector cosine distance.
+
+    Args:
+        session: SQLAlchemy session.
+        query_vector: Validated 768-dimensional float sequence.
+        top_k: Number of nearest neighbors to retrieve (default: 5, max: 100).
+        embedding_model: Optional model identifier filter (e.g. 'gemini-embedding-001').
+        embedding_dim: Optional dimension filter (default: 768).
+        document_id: Optional UUID filter for a specific document.
+
+    Returns:
+        List of tuples: (DocumentChunk, Document, cosine_distance: float)
+        ordered by ascending cosine distance (most similar first).
+        Ties are broken deterministically by (document_id, chunk_index).
+
+    Raises:
+        ValueError: If query_vector is invalid/wrong dimension, or top_k is out of range.
+    """
+    if not isinstance(top_k, int) or top_k < 1:
+        raise ValueError(f"top_k must be a positive integer >= 1, got {top_k}")
+    if top_k > MAX_TOP_K:
+        raise ValueError(f"top_k cannot exceed {MAX_TOP_K}, got {top_k}")
+
+    expected_dim = embedding_dim if embedding_dim is not None else DEFAULT_EMBEDDING_DIM
+    clean_vec = validate_embedding(query_vector, expected_dim=expected_dim)
+
+    dist_expr = DocumentChunk.embedding.cosine_distance(clean_vec).label("distance")
+
+    query = (
+        session.query(DocumentChunk, Document, dist_expr)
+        .join(Document, DocumentChunk.document_id == Document.id)
+        .filter(DocumentChunk.embedding.isnot(None))
+    )
+
+    if embedding_model is not None:
+        query = query.filter(DocumentChunk.embedding_model == embedding_model)
+
+    if embedding_dim is not None:
+        query = query.filter(DocumentChunk.embedding_dim == embedding_dim)
+
+    if document_id is not None:
+        query = query.filter(DocumentChunk.document_id == document_id)
+
+    results = (
+        query.order_by(
+            dist_expr.asc(),
+            DocumentChunk.document_id.asc(),
+            DocumentChunk.chunk_index.asc(),
+        )
+        .limit(top_k)
+        .all()
+    )
+
+    return [(chunk, doc, float(dist)) for chunk, doc, dist in results]
+
