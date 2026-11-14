@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from database.models import Document, Page
+from database.models import Document, Page, DocumentChunk
 
 
 # ---------------------------------------------------------------------------
@@ -197,3 +197,79 @@ def get_all_documents(session: Session) -> list[Document]:
     """Return all Document rows ordered by filename."""
     return session.query(Document).order_by(Document.filename).all()
 
+
+
+# ---------------------------------------------------------------------------
+# Chunk helpers
+# ---------------------------------------------------------------------------
+
+
+def replace_document_chunks(
+    session: Session,
+    document_id: uuid.UUID,
+    chunking_version: str,
+    chunks_data: list[dict],
+) -> list[DocumentChunk]:
+    """Atomically replace all chunks for a document and chunking version.
+
+    Args:
+        session:          SQLAlchemy session.
+        document_id:      UUID of document.
+        chunking_version: e.g. 'chunk-v1'.
+        chunks_data:      List of dicts with keys: chunk_index, chunk_text,
+                          start_page, end_page, char_count, token_count,
+                          section_title, metadata.
+
+    Returns:
+        List of persisted DocumentChunk instances.
+    """
+    # Delete existing chunks for this version
+    session.query(DocumentChunk).filter(
+        DocumentChunk.document_id == document_id,
+        DocumentChunk.chunking_version == chunking_version,
+    ).delete(synchronize_session=False)
+    session.flush()
+
+    new_chunks = []
+    for cd in chunks_data:
+        chunk = DocumentChunk(
+            document_id=document_id,
+            chunk_index=cd["chunk_index"],
+            chunk_text=cd["chunk_text"],
+            start_page=cd["start_page"],
+            end_page=cd["end_page"],
+            char_count=cd.get("char_count", len(cd["chunk_text"])),
+            token_count=cd["token_count"],
+            section_title=cd.get("section_title"),
+            metadata_=cd.get("metadata"),
+            chunking_version=chunking_version,
+        )
+        session.add(chunk)
+        new_chunks.append(chunk)
+
+    session.flush()
+    return new_chunks
+
+
+def get_chunks_for_document(
+    session: Session,
+    document_id: uuid.UUID,
+    chunking_version: Optional[str] = None,
+) -> list[DocumentChunk]:
+    """Retrieve all chunks for a document, ordered by chunk_index."""
+    query = session.query(DocumentChunk).filter(DocumentChunk.document_id == document_id)
+    if chunking_version:
+        query = query.filter(DocumentChunk.chunking_version == chunking_version)
+    return query.order_by(DocumentChunk.chunk_index).all()
+
+
+def count_chunks_for_document(
+    session: Session,
+    document_id: uuid.UUID,
+    chunking_version: Optional[str] = None,
+) -> int:
+    """Return the total number of chunks for a document."""
+    query = session.query(DocumentChunk).filter(DocumentChunk.document_id == document_id)
+    if chunking_version:
+        query = query.filter(DocumentChunk.chunking_version == chunking_version)
+    return query.count()

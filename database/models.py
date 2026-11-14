@@ -14,6 +14,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
 
 from database.connection import Base
 
@@ -48,6 +49,9 @@ class Document(Base):
 
     pages: Mapped[list["Page"]] = relationship(
         "Page", back_populates="document", cascade="all, delete-orphan"
+    )
+    chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk", back_populates="document", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
@@ -101,4 +105,56 @@ class Page(Base):
         return (
             f"<Page doc={self.document_id} page={self.page_number} "
             f"status={self.status!r} method={self.extraction_method!r}>"
+        )
+
+
+class DocumentChunk(Base):
+    """One row per text chunk for retrieval, preserving page-level provenance."""
+
+    __tablename__ = "document_chunks"
+    __table_args__ = (
+        UniqueConstraint(
+            "document_id",
+            "chunking_version",
+            "chunk_index",
+            name="uq_chunks_doc_ver_idx",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
+    start_page: Mapped[int] = mapped_column(Integer, nullable=False)
+    end_page: Mapped[int] = mapped_column(Integer, nullable=False)
+    char_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+    chunking_version: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding = mapped_column(Vector(768), nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_dim: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    document: Mapped["Document"] = relationship("Document", back_populates="chunks")
+
+    def __repr__(self) -> str:
+        return (
+            f"<DocumentChunk doc={self.document_id} idx={self.chunk_index} "
+            f"pages={self.start_page}-{self.end_page} tokens={self.token_count}>"
         )

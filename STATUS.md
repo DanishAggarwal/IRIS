@@ -1,7 +1,7 @@
 # IRIS — Current Status
 
-**Current stage:** Milestone 3 Complete — Ready for Milestone 4  
-**Current focus:** Structure-aware chunking (headings, sections, tables, page provenance).
+**Current stage:** Milestone 4 Complete — Ready for Milestone 5/6  
+**Current focus:** Vector embedding generation and incremental indexing.
 
 ## Completed
 - [x] Project purpose and initial scope agreed.
@@ -49,20 +49,32 @@
   - Created CLI runner `ingestion/clean_corpus.py` and exported audit report to `data/cleaning_report.md`.
   - Updated `ingestion/pipeline.py` to automatically clean newly ingested pages.
   - Unit and integration tests added in `tests/test_cleaning.py`.
-  - Total test suite: **29/29 passed**.
   - **Full Corpus Cleaning Results:**
     - **276/276 pages cleaned** and updated in PostgreSQL without modifying raw `extracted_text`.
     - Total characters: 515,619 raw → 493,035 clean (4.38% reduction from whitespace/hyphen/footer normalisation).
+- [x] **Milestone 4 Completed:**
+  - Alembic migration `0004_create_document_chunks.py` applied: created `document_chunks` table with `id`, `document_id`, `chunk_index`, `chunk_text`, `start_page`, `end_page`, `char_count`, `token_count`, `section_title`, `metadata` (JSONB), `chunking_version`, `embedding` (Vector(768)), `embedding_model`, `embedding_dim`, and unique constraint on `(document_id, chunking_version, chunk_index)`.
+  - SQLAlchemy ORM model `DocumentChunk` added to `database/models.py`.
+  - Created `ingestion/chunker.py`: structure-aware chunking algorithm splitting on Markdown headings, uppercase section markers, and paragraph boundaries while keeping Markdown tables intact and maintaining strict page range provenance (`start_page`, `end_page`).
+  - Created `ingestion/chunk_corpus.py` and generated inspection report at `data/chunk_inspection.md`.
+  - Added 6 chunking and persistence tests in `tests/test_chunking.py`.
+  - Total test suite: **35/35 passed**.
+  - **Full Corpus Chunking Results:**
+    - `Course Handout ... Ver 1_0.pdf`: **56 chunks** (avg: 595.1 tokens, 29 table chunks).
+    - `Course Handout ... Ver 2_0.pdf`: **57 chunks** (avg: 573.7 tokens, 22 table chunks).
+    - `CSE_syllabus_24.pdf`: **152 chunks** (avg: 477.5 tokens).
+    - Total corpus: **265 structure-aware chunks durably persisted in PostgreSQL**.
 
 ## Current milestone
-**M4 — Structure-aware chunking**
+**M5/M6 — Embeddings and incremental indexing**
 
-## Corpus Ingestion & Cleaning Summary
-| Filename | Total Pages | Extracted Pages | Cleaned Pages | Inferred Category | Inferred Labels |
-|---|---|---|---|---|---|
-| `CSE_syllabus_24.pdf` | 174 | 174 (`digital`) | 174 (`clean-v1`) | `syllabus` | `syllabus, curriculum, cse, btech, undergraduate` |
-| `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf` | 55 | 55 (`gemini_ocr`) | 55 (`clean-v1`) | `course_handout` | `course_handout, course_pack, cse, btech, undergraduate` |
-| `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf` | 47 | 47 (`gemini_ocr`) | 47 (`clean-v1`) | `course_handout` | `course_handout, course_pack, cse, btech, undergraduate` |
+## Corpus Chunk Summary in Database
+| Document | Pages | Total Chunks | Avg Tokens | Min-Max Tokens | Multi-Page Chunks | Table Chunks |
+|---|---|---|---|---|---|---|
+| `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf` | 55 | 56 | 595.1 | 268 - 830 | 45 | 29 |
+| `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf` | 47 | 57 | 573.7 | 372 - 1010 | 36 | 22 |
+| `CSE_syllabus_24.pdf` | 174 | 152 | 477.5 | 4 - 803 | 106 | 0 |
+| **Total** | **276** | **265** | **523.1** | **4 - 1010** | **187** | **51** |
 
 ## Sample Corpus Inventory Report (from `data/inventory_report.md`)
 | Filename | Size (KB) | Pages | Digital Pages | Mixed Pages | Scanned Pages | Overall Type | SHA-256 (first 12) |
