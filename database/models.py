@@ -73,12 +73,14 @@ class Page(Base):
     # 1-indexed
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cleaned_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     # digital | gemini_ocr
     extraction_method: Mapped[str | None] = mapped_column(Text, nullable=True)
     # model name used (None for digital pages)
     extraction_model: Mapped[str | None] = mapped_column(Text, nullable=True)
     # pipeline version string
     extraction_version: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cleaning_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     # pending | success | failed
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

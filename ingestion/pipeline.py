@@ -28,8 +28,10 @@ from database.repository import (
     upsert_page,
     get_document_by_hash,
 )
+from ingestion.cleaner import CLEANING_VERSION, clean_text
 from ingestion.discovery import compute_sha256, discover_pdfs
 from ingestion.extractor import extract_digital_page, render_page_to_png_bytes
+from ingestion.metadata_classifier import classify_document
 from ingestion.ocr import EXTRACTION_VERSION, extract_page
 from ingestion.pdf_inspector import DocumentInspection, PageInspection, inspect_pdf
 
@@ -158,9 +160,10 @@ def _process_document(session, pdf_entry) -> None:
 
 
 def _extract_digital(session, document_id, pdf_path: Path, page_number: int) -> None:
-    """Extract text from a digital/mixed page using PyMuPDF."""
+    """Extract text from a digital/mixed page using PyMuPDF and apply clean_text."""
     try:
         text = extract_digital_page(pdf_path, page_number)
+        cleaned = clean_text(text, page_number=page_number)
         mark_page_success(
             session,
             document_id=document_id,
@@ -169,9 +172,12 @@ def _extract_digital(session, document_id, pdf_path: Path, page_number: int) -> 
             extraction_method="digital",
             extraction_model=None,
             extraction_version=EXTRACTION_VERSION,
+            cleaned_text=cleaned,
+            cleaning_version=CLEANING_VERSION,
         )
         logger.debug(
-            "  Page %d: digital extraction OK (%d chars)", page_number, len(text)
+            "  Page %d: digital extraction OK (%d raw chars, %d clean chars)",
+            page_number, len(text), len(cleaned)
         )
     except Exception as exc:
         logger.error("  Page %d: digital extraction failed: %s", page_number, exc)
@@ -185,7 +191,7 @@ def _extract_digital(session, document_id, pdf_path: Path, page_number: int) -> 
 
 
 def _extract_ocr(session, document_id, pdf_path: Path, page_number: int) -> None:
-    """Render page to image and extract text via Gemini OCR."""
+    """Render page to image, extract text via Gemini OCR, and apply clean_text."""
     try:
         image_bytes = render_page_to_png_bytes(pdf_path, page_number)
     except Exception as exc:
@@ -201,20 +207,25 @@ def _extract_ocr(session, document_id, pdf_path: Path, page_number: int) -> None
 
     result = extract_page(image_bytes, page_number)
     if result["status"] == "success":
+        raw_text = result["text"]
+        cleaned = clean_text(raw_text, page_number=page_number)
         mark_page_success(
             session,
             document_id=document_id,
             page_number=page_number,
-            extracted_text=result["text"],
+            extracted_text=raw_text,
             extraction_method="gemini_ocr",
             extraction_model=result["model_used"],
             extraction_version=EXTRACTION_VERSION,
+            cleaned_text=cleaned,
+            cleaning_version=CLEANING_VERSION,
         )
         logger.info(
-            "  Page %d: OCR OK via %s (%d chars)",
+            "  Page %d: OCR OK via %s (%d raw chars, %d clean chars)",
             page_number,
             result["model_used"],
-            len(result["text"]),
+            len(raw_text),
+            len(cleaned),
         )
     else:
         logger.error("  Page %d: OCR failed: %s", page_number, result["error"])

@@ -109,8 +109,10 @@ def mark_page_success(
     extraction_method: str,
     extraction_model: Optional[str],
     extraction_version: str,
+    cleaned_text: Optional[str] = None,
+    cleaning_version: Optional[str] = None,
 ) -> None:
-    """Record a successful page extraction."""
+    """Record a successful page extraction and optional cleaned text."""
     page = get_page(session, document_id, page_number)
     if page is None:
         page = Page(document_id=document_id, page_number=page_number)
@@ -121,6 +123,9 @@ def mark_page_success(
     page.extraction_method = extraction_method
     page.extraction_model = extraction_model
     page.extraction_version = extraction_version
+    if cleaned_text is not None:
+        page.cleaned_text = cleaned_text
+        page.cleaning_version = cleaning_version
     page.char_count = len(extracted_text) if extracted_text else 0
     page.error_message = None
     session.flush()
@@ -143,3 +148,52 @@ def mark_page_failed(
     page.error_message = error_message
     page.extraction_version = extraction_version
     session.flush()
+
+
+def update_page_cleaned_text(
+    session: Session,
+    document_id: uuid.UUID,
+    page_number: int,
+    cleaned_text: str,
+    cleaning_version: str,
+) -> None:
+    """Store cleaned text alongside raw extracted text without overwriting raw text."""
+    page = get_page(session, document_id, page_number)
+    if page:
+        page.cleaned_text = cleaned_text
+        page.cleaning_version = cleaning_version
+        session.flush()
+
+
+def get_pages_for_cleaning(
+    session: Session, document_id: uuid.UUID, target_cleaning_version: Optional[str] = None
+) -> list[Page]:
+    """Return all successfully extracted pages for a document that need cleaning."""
+    query = (
+        session.query(Page)
+        .filter(Page.document_id == document_id, Page.status == "success")
+    )
+    if target_cleaning_version:
+        query = query.filter(
+            (Page.cleaning_version != target_cleaning_version)
+            | (Page.cleaning_version.is_(None))
+        )
+    return query.order_by(Page.page_number).all()
+
+
+def update_document_metadata(
+    session: Session, document_id: uuid.UUID, metadata_dict: dict
+) -> None:
+    """Merge or set metadata dict on the document record."""
+    doc = session.get(Document, document_id)
+    if doc:
+        current_meta = dict(doc.metadata_ or {})
+        current_meta.update(metadata_dict)
+        doc.metadata_ = current_meta
+        session.flush()
+
+
+def get_all_documents(session: Session) -> list[Document]:
+    """Return all Document rows ordered by filename."""
+    return session.query(Document).order_by(Document.filename).all()
+

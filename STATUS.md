@@ -1,7 +1,7 @@
 # IRIS — Current Status
 
-**Current stage:** Milestone 2 Complete — Ready for Milestone 3  
-**Current focus:** Text cleaning, normalisation, and optional document metadata tagging.
+**Current stage:** Milestone 3 Complete — Ready for Milestone 4  
+**Current focus:** Structure-aware chunking (headings, sections, tables, page provenance).
 
 ## Completed
 - [x] Project purpose and initial scope agreed.
@@ -36,23 +36,33 @@
   - Thin Gemini OCR provider created in `ingestion/ocr.py` using `gemini-3.5-flash-lite` (primary) and `gemini-3.1-flash-lite` (fallback) with exponential backoff on 429, safe empty-page handling, and verbatim transcription prompting (temperature 0).
   - Ingestion orchestration pipeline created in `ingestion/pipeline.py` with automatic digital/scanned routing, hash deduplication, and crash-resilient per-page DB commits.
   - Unit and integration tests added in `tests/test_extraction.py` (mocked OCR, no quota burn).
-  - Test suite: **17/17 passed**.
+  - Test suite: 17/17 passed.
   - **Full Corpus Extraction Results:**
     - `CSE_syllabus_24.pdf`: **174/174 pages extracted** (method: digital, 0 API calls).
     - `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf`: **55/55 pages extracted** (method: gemini_ocr).
     - `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf`: **47/47 pages extracted** (method: gemini_ocr).
     - Total corpus: **276 pages durably stored in PostgreSQL**.
-    - Interruption and resumption verified: successfully resumed incomplete pages without repeating completed pages.
+- [x] **Milestone 3 Completed:**
+  - Alembic migration `0003_add_cleaned_text_to_pages.py` applied: added `cleaned_text` and `cleaning_version` to `pages`.
+  - Created `ingestion/cleaner.py`: conservative text normalisation that standardises unicode, anomalous whitespace, broken hyphenation across line-wraps, and bullet formats, while strictly preserving Markdown tables, numbers, course codes, dates, and paragraph breaks.
+  - Created `ingestion/metadata_classifier.py`: deterministic, non-blocking document categorization tagging category (`syllabus`, `course_handout`), subcategories, academic year, version, and labels into `documents.metadata_`.
+  - Created CLI runner `ingestion/clean_corpus.py` and exported audit report to `data/cleaning_report.md`.
+  - Updated `ingestion/pipeline.py` to automatically clean newly ingested pages.
+  - Unit and integration tests added in `tests/test_cleaning.py`.
+  - Total test suite: **29/29 passed**.
+  - **Full Corpus Cleaning Results:**
+    - **276/276 pages cleaned** and updated in PostgreSQL without modifying raw `extracted_text`.
+    - Total characters: 515,619 raw → 493,035 clean (4.38% reduction from whitespace/hyphen/footer normalisation).
 
 ## Current milestone
-**M3 — Cleaning and optional metadata**
+**M4 — Structure-aware chunking**
 
-## Corpus Extraction Summary in Database
-| Filename | Status | Total Pages | Extracted Pages | Extraction Method |
-|---|---|---|---|---|
-| `CSE_syllabus_24.pdf` | `complete` | 174 | 174 | `digital` |
-| `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf` | `complete` | 55 | 55 | `gemini_ocr` (`gemini-3.5-flash-lite`) |
-| `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf` | `complete` | 47 | 47 | `gemini_ocr` (`gemini-3.5-flash-lite`) |
+## Corpus Ingestion & Cleaning Summary
+| Filename | Total Pages | Extracted Pages | Cleaned Pages | Inferred Category | Inferred Labels |
+|---|---|---|---|---|---|
+| `CSE_syllabus_24.pdf` | 174 | 174 (`digital`) | 174 (`clean-v1`) | `syllabus` | `syllabus, curriculum, cse, btech, undergraduate` |
+| `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf` | 55 | 55 (`gemini_ocr`) | 55 (`clean-v1`) | `course_handout` | `course_handout, course_pack, cse, btech, undergraduate` |
+| `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf` | 47 | 47 (`gemini_ocr`) | 47 (`clean-v1`) | `course_handout` | `course_handout, course_pack, cse, btech, undergraduate` |
 
 ## Sample Corpus Inventory Report (from `data/inventory_report.md`)
 | Filename | Size (KB) | Pages | Digital Pages | Mixed Pages | Scanned Pages | Overall Type | SHA-256 (first 12) |
