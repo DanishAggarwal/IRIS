@@ -27,6 +27,10 @@ _UPPERCASE_HEADING_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Regex to detect HTML table elements (case-insensitive)
+_HTML_TABLE_OPEN_RE = re.compile(r"<table[\s>]", re.IGNORECASE)
+_HTML_TABLE_CLOSE_RE = re.compile(r"</table\s*>", re.IGNORECASE)
+
 
 def estimate_tokens(text: str) -> int:
     """Accurately estimate token count for English/technical text.
@@ -81,8 +85,43 @@ class ChunkOutput:
         }
 
 
+def compute_page_spans(blocks: list[StructuralBlock]) -> list[dict[str, int]]:
+    """Compute exact character spans for each page represented in the chunk blocks.
+
+    For each page represented in a chunk, records:
+      - page: original 1-based page number
+      - char_start: zero-based inclusive character offset in the stored chunk_text
+      - char_end: exclusive character offset in the stored chunk_text
+
+    Offsets refer to the exact final chunk_text, including separators inserted
+    between page blocks.
+    """
+    if not blocks:
+        return []
+
+    spans_by_page: dict[int, dict[str, int]] = {}
+    current_offset = 0
+
+    for b in blocks:
+        block_len = len(b.text)
+        block_start = current_offset
+        block_end = current_offset + block_len
+
+        p = b.page_number
+        if p not in spans_by_page:
+            spans_by_page[p] = {"page": p, "char_start": block_start, "char_end": block_end}
+        else:
+            # Extend existing span for this page (covers intermediate separators within the page)
+            spans_by_page[p]["char_end"] = block_end
+
+        # Account for "\n\n" separator between blocks in chunk_text
+        current_offset = block_end + 2
+
+    return sorted(spans_by_page.values(), key=lambda s: s["page"])
+
+
 def extract_structural_blocks(page_number: int, page_text: str) -> list[StructuralBlock]:
-    """Parse page text into atomic structural blocks (tables, headings, paragraphs)."""
+    """Parse page text into atomic structural blocks (Markdown tables, HTML tables, headings, paragraphs)."""
     if not page_text or not page_text.strip():
         return []
 
@@ -91,7 +130,8 @@ def extract_structural_blocks(page_number: int, page_text: str) -> list[Structur
 
     current_para_lines: list[str] = []
     current_table_lines: list[str] = []
-    in_table = False
+    in_markdown_table = False
+    in_html_table = False
 
     def flush_para():
         nonlocal current_para_lines
@@ -124,7 +164,7 @@ def extract_structural_blocks(page_number: int, page_text: str) -> list[Structur
             current_para_lines = []
 
     def flush_table():
-        nonlocal current_table_lines, in_table
+        nonlocal current_table_lines, in_markdown_table, in_html_table
         if current_table_lines:
             table_text = "\n".join(current_table_lines).strip()
             if table_text:
@@ -132,19 +172,37 @@ def extract_structural_blocks(page_number: int, page_text: str) -> list[Structur
                     StructuralBlock(text=table_text, page_number=page_number, is_table=True)
                 )
             current_table_lines = []
-            in_table = False
+            in_markdown_table = False
+            in_html_table = False
 
     for line in lines:
         stripped = line.strip()
 
-        # Check if line is a table row
+        # 1. If currently inside an HTML table
+        if in_html_table:
+            current_table_lines.append(line)
+            if _HTML_TABLE_CLOSE_RE.search(stripped):
+                flush_table()
+            continue
+
+        # 2. Check if this line starts an HTML table (case-insensitive)
+        if _HTML_TABLE_OPEN_RE.search(stripped):
+            if in_markdown_table:
+                flush_table()
+            flush_para()
+            in_html_table = True
+            current_table_lines.append(line)
+            if _HTML_TABLE_CLOSE_RE.search(stripped):
+                flush_table()
+            continue
+
+        # 3. Markdown table detection
         if stripped.startswith("|") and stripped.endswith("|") and stripped.count("|") >= 2:
             flush_para()
-            in_table = True
+            in_markdown_table = True
             current_table_lines.append(line)
             continue
-        elif in_table:
-            # End of table
+        elif in_markdown_table:
             flush_table()
 
         if not stripped:
@@ -275,6 +333,8 @@ def chunk_document_pages(
         if has_tables:
             meta["has_table"] = True
 
+        meta["page_spans"] = compute_page_spans(blocks)
+
         chunks.append(
             ChunkOutput(
                 chunk_index=chunk_index,
@@ -340,9 +400,19 @@ def chunk_document_pages(
             active_section_title = block.heading_title
 
         # Check if we should split before adding this block:
-        # A) Current chunk reached token ceiling
-        # B) Current chunk is large enough (> min_tokens) AND block is a major heading
-        reached_limit = (current_tokens + b_tokens) > target_max_tokens
+        # A) Current chunk reached token ceiling:
+        #    Normal ceiling is target_max_tokens.
+        #    Allow up to 10% headroom (825 tokens for 750 target) only when current_blocks contains
+        #    exactly one heading block and the immediately following block is its associated section body.
+        ceiling = target_max_tokens
+        if (
+            len(current_blocks) == 1
+            and current_blocks[0].is_heading
+            and not block.is_heading
+        ):
+            ceiling = int(target_max_tokens * 1.10)
+
+        reached_limit = (current_tokens + b_tokens) > ceiling
         is_natural_split = (current_tokens >= target_min_tokens) and block.is_heading
 
         if (reached_limit or is_natural_split) and current_blocks:

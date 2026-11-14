@@ -195,3 +195,89 @@ def test_database_chunks_persistence_and_replacement():
         session.query(DocumentChunk).filter(DocumentChunk.document_id == doc.id).delete()
         session.delete(doc)
         session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Targeted Quality Audit Regression Tests
+# ---------------------------------------------------------------------------
+
+
+def test_orphan_heading_stays_with_body_under_headroom():
+    """Heading (4 tokens) + body (~755 tokens) must remain together under 10% headroom."""
+    heading_text = "Course Objectives:"
+    # Generate ~755 tokens body text (~2870 chars)
+    body_sentence = "To inculcate the application of Mechanics concepts in engineering and familiarize students with rigid body kinematics. "
+    body_text = (body_sentence * 24).strip()  # approx 755 tokens
+
+    pages = [(39, f"{heading_text}\n\n{body_text}")]
+    chunks = chunk_document_pages(pages, target_max_tokens=750)
+
+    # Must be exactly 1 chunk containing both the heading and body
+    assert len(chunks) == 1, f"Expected 1 merged chunk, got {len(chunks)}"
+    c = chunks[0]
+    assert c.chunk_text.startswith("Course Objectives:")
+    assert body_sentence.strip() in c.chunk_text
+    assert 750 <= c.token_count <= 825
+    assert c.start_page == 39
+    assert c.end_page == 39
+
+
+def test_html_table_recognition_atomicity_and_metadata():
+    """HTML <table> tags (case-insensitive) must be atomic table blocks with has_table metadata."""
+    html_table = (
+        '<table border="1">\n'
+        '  <tr><td><b>Course Outcome</b></td><td><b>PO1</b></td><td><b>PO2</b></td></tr>\n'
+        '  <tr><td>CO1</td><td>3</td><td>2</td></tr>\n'
+        '  <tr><td>CO2</td><td>2</td><td>3</td></tr>\n'
+        '</table>'
+    )
+    pages = [(4, f"Introductory text.\n\n{html_table}\n\nConsequent text.")]
+    chunks = chunk_document_pages(pages)
+
+    table_chunks = [c for c in chunks if (c.metadata or {}).get("has_table")]
+    assert len(table_chunks) >= 1
+    assert '<table border="1">' in table_chunks[0].chunk_text
+    assert '</table>' in table_chunks[0].chunk_text
+    assert table_chunks[0].metadata.get("has_table") is True
+
+    # Test uppercase <TABLE> tag recognition
+    html_upper = '<TABLE><TR><TD>Upper Table</TD></TR></TABLE>'
+    blocks = extract_structural_blocks(page_number=1, page_text=html_upper)
+    assert len(blocks) == 1
+    assert blocks[0].is_table is True
+
+
+def test_exact_page_provenance_spans():
+    """Chunk metadata must contain accurate, ordered, non-overlapping page_spans."""
+    page1_text = "Content from page one describing introduction."
+    page2_text = "Content from page two describing details and algorithms."
+    pages = [(1, page1_text), (2, page2_text)]
+
+    chunks = chunk_document_pages(pages, target_max_tokens=500)
+    assert len(chunks) == 1
+    c = chunks[0]
+
+    spans = c.metadata.get("page_spans")
+    assert isinstance(spans, list)
+    assert len(spans) == 2
+
+    # Check page 1 span
+    s1 = spans[0]
+    assert s1["page"] == 1
+    assert s1["char_start"] == 0
+    assert c.chunk_text[s1["char_start"]:s1["char_end"]] == page1_text
+
+    # Check page 2 span
+    s2 = spans[1]
+    assert s2["page"] == 2
+    assert s2["char_start"] > s1["char_end"]  # non-overlapping, separated by \n\n
+    assert s2["char_end"] == len(c.chunk_text)
+    assert c.chunk_text[s2["char_start"]:s2["char_end"]] == page2_text
+
+    # Single-page chunk span check
+    single_page_chunks = chunk_document_pages([(5, "Single page content.")])
+    sp_spans = single_page_chunks[0].metadata.get("page_spans")
+    assert len(sp_spans) == 1
+    assert sp_spans[0]["page"] == 5
+    assert sp_spans[0]["char_start"] == 0
+    assert sp_spans[0]["char_end"] == len(single_page_chunks[0].chunk_text)
