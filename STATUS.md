@@ -87,9 +87,17 @@
   - Evaluated on 36 curated benchmark questions: Status classification 86.1% (31/36), Citation existence 100% (29/29), Citation provenance 100% (29/29), Claim-level support 100% (29/29), Safe handoff accuracy 100% (8/8).
   - Added unit and regression test suite in `tests/test_rag.py` (18/18 passed).
   - Total test suite: 93/93 passed.
+- [x] **Milestone 9 Completed:**
+  - FastAPI backend implemented with modular architecture: `api/main.py`, `api/config.py`, `api/schemas.py`, `api/dependencies.py`, `api/exceptions.py`, `api/routes/chat.py`, `api/routes/health.py`.
+  - Endpoint `POST /chat` exposes grounded RAG pipeline with Pydantic request/response validation, whitespace stripping, top-k bounding (1–20), and strict public status mapping (`answered`, `clarification_needed`, `handoff_recommended`).
+  - Liveness probe `GET /health` and non-quota burning readiness probe `GET /health/ready` verifying database connectivity and Gemini configuration.
+  - Safe error handling (422, 503, 500) preventing leakage of stack traces, database credentials, or internal prompts.
+  - Development CORS middleware configured for React frontend integration.
+  - Added unit test suite in `tests/test_api.py` (17/17 passed).
+  - Total test suite: **110/110 passed**.
 
 ## Current milestone
-**M8 Completed — Merged into main**
+**M9 Completed — Merged into main**
 
 ## Corpus Chunk Summary in Database
 | Document | Pages | Total Chunks | Avg Tokens | Multi-Page Chunks | Table Chunks | Embeddings |
