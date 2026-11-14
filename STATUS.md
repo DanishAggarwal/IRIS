@@ -1,7 +1,7 @@
 # IRIS — Current Status
 
-**Current stage:** Milestone 1 Complete — Ready for Milestone 2  
-**Current focus:** Page-level text extraction and resumable OCR planning.
+**Current stage:** Milestone 2 Complete — Ready for Milestone 3  
+**Current focus:** Text cleaning, normalisation, and optional document metadata tagging.
 
 ## Completed
 - [x] Project purpose and initial scope agreed.
@@ -28,9 +28,31 @@
   - Created CLI runner `inspect_corpus.py` and exported inventory report to `data/inventory_report.md`.
   - Created and ran `tests/test_inspection.py` verifying discovery, hash determinism, page counts, and source PDF immutability.
   - Total test suite: 8/8 passed.
+- [x] **Milestone 2 Completed:**
+  - Alembic migration `0002_create_documents_and_pages.py` applied: `documents` and `pages` tables with foreign keys, cascading deletes, unique constraints on `(document_id, page_number)`, and indexes on `(document_id, status)`.
+  - SQLAlchemy ORM models created in `database/models.py` (`Document`, `Page`).
+  - Database access repository created in `database/repository.py` with idempotent upserts, status tracking (`pending`, `success`, `failed`), and durable per-page commits.
+  - PyMuPDF text extractor created in `ingestion/extractor.py` (`extract_digital_page`, `render_page_to_png_bytes`) with zero API cost for digital pages.
+  - Thin Gemini OCR provider created in `ingestion/ocr.py` using `gemini-3.5-flash-lite` (primary) and `gemini-3.1-flash-lite` (fallback) with exponential backoff on 429, safe empty-page handling, and verbatim transcription prompting (temperature 0).
+  - Ingestion orchestration pipeline created in `ingestion/pipeline.py` with automatic digital/scanned routing, hash deduplication, and crash-resilient per-page DB commits.
+  - Unit and integration tests added in `tests/test_extraction.py` (mocked OCR, no quota burn).
+  - Test suite: **17/17 passed**.
+  - **Full Corpus Extraction Results:**
+    - `CSE_syllabus_24.pdf`: **174/174 pages extracted** (method: digital, 0 API calls).
+    - `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf`: **55/55 pages extracted** (method: gemini_ocr).
+    - `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf`: **47/47 pages extracted** (method: gemini_ocr).
+    - Total corpus: **276 pages durably stored in PostgreSQL**.
+    - Interruption and resumption verified: successfully resumed incomplete pages without repeating completed pages.
 
 ## Current milestone
-**M2 — Page-level extraction and resumable OCR**
+**M3 — Cleaning and optional metadata**
+
+## Corpus Extraction Summary in Database
+| Filename | Status | Total Pages | Extracted Pages | Extraction Method |
+|---|---|---|---|---|
+| `CSE_syllabus_24.pdf` | `complete` | 174 | 174 | `digital` |
+| `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf` | `complete` | 55 | 55 | `gemini_ocr` (`gemini-3.5-flash-lite`) |
+| `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf` | `complete` | 47 | 47 | `gemini_ocr` (`gemini-3.5-flash-lite`) |
 
 ## Sample Corpus Inventory Report (from `data/inventory_report.md`)
 | Filename | Size (KB) | Pages | Digital Pages | Mixed Pages | Scanned Pages | Overall Type | SHA-256 (first 12) |
