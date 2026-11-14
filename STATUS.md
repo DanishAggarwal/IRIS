@@ -63,18 +63,41 @@
     - `Course Handout ... Ver 1_0.pdf`: **56 chunks** (avg: 595.1 tokens, 29 table chunks).
     - `Course Handout ... Ver 2_0.pdf`: **57 chunks** (avg: 573.7 tokens, 22 table chunks).
     - `CSE_syllabus_24.pdf`: **152 chunks** (avg: 477.5 tokens).
-    - Total corpus: **265 structure-aware chunks durably persisted in PostgreSQL**.
+    - Total corpus: **257 structure-aware chunks durably persisted in PostgreSQL** (post-audit quality improvements: orphan heading headroom, HTML tables atomic).
+- [x] **Milestone 5 Completed:**
+  - Embedding database repository foundations created in `database/repository.py`.
+  - Added unit and validation tests for 768-dim embeddings in `tests/test_embedding_repository.py`.
+  - Added repository methods for incremental and batch embedding persistence and retrieval.
+- [x] **Milestone 6 Completed:**
+  - Gemini embedding integration created using `gemini-embedding-001` with 768 output dimensions.
+  - Document task type: `RETRIEVAL_DOCUMENT`; Query task type: `RETRIEVAL_QUERY`.
+  - Successfully embedded all 257 corpus chunks with 100% database persistence and zero null embeddings.
+  - Added comprehensive provider and pipeline tests in `tests/test_embedding_provider.py`.
+- [x] **Milestone 7 Completed:**
+  - Semantic retrieval foundation implemented in `retrieval/retriever.py` with cosine distance (`<=>`) ordering and strict tie-breaking.
+  - Created retrieval CLI interface in `retrieval/search.py` supporting human-readable and JSON output.
+  - Built evaluation framework in `retrieval/evaluate.py` with 30 curated questions in `eval/retrieval_eval_dataset.json`.
+  - Hit@1: 88.0%, Hit@3: 96.0%, Hit@5: 100.0%, Negative rejection: 100.0%.
+  - Added unit and integration tests in `tests/test_retrieval.py` (14/14 passed).
+- [x] **Milestone 8 Completed:**
+  - Modular RAG answer engine implemented: `rag/models.py`, `rag/context_builder.py`, `rag/evidence.py`, `rag/generator.py`, `rag/citation_validator.py`, `rag/pipeline.py`, `rag/ask.py`, `rag/evaluate_rag.py`.
+  - Structured enum status: `answered`, `clarification_needed`, `insufficient_evidence`, `handoff_recommended`.
+  - Security hardening: boundary tags and anti-prompt injection defense against adversarial text in documents.
+  - Strict citation validator matching document filenames, page ranges, and section titles against retrieved evidence.
+  - Evaluated on 36 curated benchmark questions: Status classification 86.1% (31/36), Citation existence 100% (29/29), Citation provenance 100% (29/29), Claim-level support 100% (29/29), Safe handoff accuracy 100% (8/8).
+  - Added unit and regression test suite in `tests/test_rag.py` (18/18 passed).
+  - Total test suite: 93/93 passed.
 
 ## Current milestone
-**M5/M6 — Embeddings and incremental indexing**
+**M8 Completed — Merged into main**
 
 ## Corpus Chunk Summary in Database
-| Document | Pages | Total Chunks | Avg Tokens | Min-Max Tokens | Multi-Page Chunks | Table Chunks |
+| Document | Pages | Total Chunks | Avg Tokens | Multi-Page Chunks | Table Chunks | Embeddings |
 |---|---|---|---|---|---|---|
-| `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf` | 55 | 56 | 595.1 | 268 - 830 | 45 | 29 |
-| `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf` | 47 | 57 | 573.7 | 372 - 1010 | 36 | 22 |
-| `CSE_syllabus_24.pdf` | 174 | 152 | 477.5 | 4 - 803 | 106 | 0 |
-| **Total** | **276** | **265** | **523.1** | **4 - 1010** | **187** | **51** |
+| `Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf` | 55 | 53 | 623.5 | 45 | 29 | 53 (768-dim) |
+| `Course Handout of CSE 25261 Semester 04082025 Ver 2_0.pdf` | 47 | 53 | 611.8 | 36 | 22 | 53 (768-dim) |
+| `CSE_syllabus_24.pdf` | 174 | 151 | 480.2 | 106 | 0 | 151 (768-dim) |
+| **Total** | **276** | **257** | **536.8** | **187** | **51** | **257 (100%)** |
 
 ## Sample Corpus Inventory Report (from `data/inventory_report.md`)
 | Filename | Size (KB) | Pages | Digital Pages | Mixed Pages | Scanned Pages | Overall Type | SHA-256 (first 12) |
