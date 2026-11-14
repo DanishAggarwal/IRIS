@@ -5,8 +5,9 @@ should not build raw queries. Functions are intentionally thin and
 individually testable.
 """
 
+import math
 import uuid
-from typing import Optional
+from typing import Optional, Sequence, Any
 
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -273,3 +274,212 @@ def count_chunks_for_document(
     if chunking_version:
         query = query.filter(DocumentChunk.chunking_version == chunking_version)
     return query.count()
+
+
+# ---------------------------------------------------------------------------
+# Embedding helpers
+# ---------------------------------------------------------------------------
+
+DEFAULT_EMBEDDING_DIM = 768
+
+
+def validate_embedding(
+    embedding: Any, expected_dim: int = DEFAULT_EMBEDDING_DIM
+) -> list[float]:
+    """Validate that an embedding vector is finite, numeric, and matches expected dimensions.
+
+    Args:
+        embedding: Sequence of numeric values.
+        expected_dim: Target dimension size (default: 768).
+
+    Returns:
+        List of float values.
+
+    Raises:
+        ValueError: If vector is not a sequence, wrong dimension, or contains NaN/Inf.
+    """
+    if embedding is None:
+        raise ValueError("Embedding vector cannot be None")
+
+    if isinstance(embedding, (str, bytes, dict)):
+        raise ValueError("Embedding vector must be a sequence of numeric floats, not str/bytes/dict")
+
+    try:
+        vec = [float(x) for x in embedding]
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Embedding vector contains non-numeric values: {exc}") from exc
+
+    if len(vec) != expected_dim:
+        raise ValueError(
+            f"Embedding dimension mismatch: expected {expected_dim}, got {len(vec)}"
+        )
+
+    for i, val in enumerate(vec):
+        if math.isnan(val) or math.isinf(val):
+            raise ValueError(
+                f"Embedding vector contains non-finite value ({val}) at index {i}"
+            )
+
+    return vec
+
+
+def get_chunk_by_id(session: Session, chunk_id: uuid.UUID) -> Optional[DocumentChunk]:
+    """Retrieve a single DocumentChunk by UUID."""
+    return session.get(DocumentChunk, chunk_id)
+
+
+def store_chunk_embedding(
+    session: Session,
+    chunk_id: uuid.UUID,
+    embedding: Sequence[float],
+    embedding_model: str,
+    embedding_dim: int = DEFAULT_EMBEDDING_DIM,
+) -> DocumentChunk:
+    """Store or update an embedding vector and model metadata for an existing chunk.
+
+    Strictly preserves chunk_text, page provenance (start_page, end_page, page_spans),
+    section_title, and chunking_version.
+
+    Args:
+        session: SQLAlchemy session.
+        chunk_id: UUID of DocumentChunk.
+        embedding: Sequence of numeric floats.
+        embedding_model: Identifier of the embedding model (e.g. 'text-embedding-004').
+        embedding_dim: Dimension of vector (must match configured column, default: 768).
+
+    Returns:
+        Updated DocumentChunk instance.
+
+    Raises:
+        ValueError: If vector is invalid, dimensions mismatch, model string is empty,
+                    or chunk does not exist.
+    """
+    if not embedding_model or not isinstance(embedding_model, str) or not embedding_model.strip():
+        raise ValueError("embedding_model must be a non-empty string")
+
+    clean_vec = validate_embedding(embedding, expected_dim=embedding_dim)
+
+    chunk = get_chunk_by_id(session, chunk_id)
+    if chunk is None:
+        raise ValueError(f"DocumentChunk with ID {chunk_id} not found")
+
+    chunk.embedding = clean_vec
+    chunk.embedding_model = embedding_model.strip()
+    chunk.embedding_dim = embedding_dim
+    session.flush()
+    return chunk
+
+
+def store_chunk_embeddings_batch(
+    session: Session,
+    updates: list[dict],
+    expected_dim: int = DEFAULT_EMBEDDING_DIM,
+) -> int:
+    """Transactionally persist embeddings for multiple chunks.
+
+    Pre-validates all records before applying updates to ensure all-or-nothing atomicity.
+
+    Args:
+        session: SQLAlchemy session.
+        updates: List of dicts, each with keys:
+                 - chunk_id (uuid.UUID)
+                 - embedding (Sequence[float])
+                 - embedding_model (str)
+                 - optional embedding_dim (int, defaults to expected_dim)
+        expected_dim: Expected vector dimension.
+
+    Returns:
+        Number of updated chunks.
+
+    Raises:
+        ValueError: If any record has invalid vector, wrong dimension, missing chunk, etc.
+    """
+    if not updates:
+        return 0
+
+    validated_updates = []
+    for idx, item in enumerate(updates):
+        chunk_id = item.get("chunk_id")
+        if not chunk_id:
+            raise ValueError(f"Batch item at index {idx} missing 'chunk_id'")
+
+        model = item.get("embedding_model")
+        if not model or not isinstance(model, str) or not model.strip():
+            raise ValueError(f"Batch item at index {idx} missing or invalid 'embedding_model'")
+
+        dim = item.get("embedding_dim", expected_dim)
+        vec = validate_embedding(item.get("embedding"), expected_dim=dim)
+
+        chunk = get_chunk_by_id(session, chunk_id)
+        if chunk is None:
+            raise ValueError(f"Batch item at index {idx}: chunk {chunk_id} not found")
+
+        validated_updates.append((chunk, vec, model.strip(), dim))
+
+    for chunk, vec, model, dim in validated_updates:
+        chunk.embedding = vec
+        chunk.embedding_model = model
+        chunk.embedding_dim = dim
+
+    session.flush()
+    return len(validated_updates)
+
+
+def get_unembedded_chunks(
+    session: Session,
+    document_id: Optional[uuid.UUID] = None,
+    chunking_version: Optional[str] = None,
+    limit: Optional[int] = None,
+) -> list[DocumentChunk]:
+    """Retrieve chunks where embedding is NULL (pending embedding generation).
+
+    Args:
+        session: SQLAlchemy session.
+        document_id: Optional UUID filter for a specific document.
+        chunking_version: Optional version string filter.
+        limit: Optional maximum number of chunks to return.
+
+    Returns:
+        List of DocumentChunk instances ordered by document_id and chunk_index.
+    """
+    query = session.query(DocumentChunk).filter(DocumentChunk.embedding.is_(None))
+    if document_id is not None:
+        query = query.filter(DocumentChunk.document_id == document_id)
+    if chunking_version is not None:
+        query = query.filter(DocumentChunk.chunking_version == chunking_version)
+
+    query = query.order_by(DocumentChunk.document_id, DocumentChunk.chunk_index)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
+
+
+def get_chunk_embedding_status(
+    session: Session,
+    document_id: Optional[uuid.UUID] = None,
+    chunking_version: Optional[str] = None,
+) -> dict[str, int]:
+    """Return embedding summary status counts for a document or entire corpus.
+
+    Args:
+        session: SQLAlchemy session.
+        document_id: Optional UUID filter.
+        chunking_version: Optional version string filter.
+
+    Returns:
+        Dict with keys: 'total_chunks', 'embedded_chunks', 'unembedded_chunks'.
+    """
+    base_query = session.query(DocumentChunk)
+    if document_id is not None:
+        base_query = base_query.filter(DocumentChunk.document_id == document_id)
+    if chunking_version is not None:
+        base_query = base_query.filter(DocumentChunk.chunking_version == chunking_version)
+
+    total = base_query.count()
+    embedded = base_query.filter(DocumentChunk.embedding.isnot(None)).count()
+    unembedded = total - embedded
+    return {
+        "total_chunks": total,
+        "embedded_chunks": embedded,
+        "unembedded_chunks": unembedded,
+    }
