@@ -44,14 +44,14 @@ export const CrawlerFilterBar: React.FC<CrawlerFilterBarProps> = ({
     Boolean(selectedSource) ||
     Boolean(selectedStatus) ||
     Boolean(selectedChangeStatus) ||
-    currentSortKey !== 'discovered_at:desc'
+    currentSortKey !== 'document_date:desc'
 
   const clearFilters = () => {
     onSearchChange('')
     onSourceChange('')
     onStatusChange('')
     onChangeStatusChange('')
-    onSortChange('discovered_at', 'desc')
+    onSortChange('document_date', 'desc')
   }
 
   const handleSortSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -143,12 +143,11 @@ export const CrawlerFilterBar: React.FC<CrawlerFilterBarProps> = ({
             onChange={handleSortSelect}
             aria-label="Sort documents"
           >
-            <option value="discovered_at:desc">Sort: Newest First</option>
-            <option value="discovered_at:asc">Sort: Oldest First</option>
+            <option value="document_date:desc">Sort: Newest First (Issued Date)</option>
+            <option value="document_date:asc">Sort: Oldest First (Issued Date)</option>
+            <option value="discovered_at:desc">Sort: Recently Discovered</option>
             <option value="title:asc">Sort: Title (A → Z)</option>
             <option value="title:desc">Sort: Title (Z → A)</option>
-            <option value="publication_date:desc">Sort: Pub Date (Newest)</option>
-            <option value="publication_date:asc">Sort: Pub Date (Oldest)</option>
           </select>
         </div>
 

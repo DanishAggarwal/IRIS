@@ -327,7 +327,7 @@ def list_documents(
     category: Optional[str] = Query(default=None, description="Filter by category"),
     change_status: Optional[str] = Query(default=None, description="Filter by change_status (e.g. unchanged, potentially_changed, unknown)"),
     search: Optional[str] = Query(default=None, description="Search term in title or URL"),
-    sort_by: Optional[str] = Query(default="discovered_at", description="Field to sort by: discovered_at, title, publication_date, status"),
+    sort_by: Optional[str] = Query(default="document_date", description="Field to sort by: document_date, title, publication_date, status, discovered_at"),
     sort_order: Optional[str] = Query(default="desc", description="Sort order: asc or desc"),
     db: Session = Depends(get_database_session),
     admin_user: User = Depends(require_admin),

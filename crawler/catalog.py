@@ -528,7 +528,7 @@ def list_discovered_documents_paginated(
     category: Optional[str] = None,
     change_status: Optional[str] = None,
     search: Optional[str] = None,
-    sort_by: Optional[str] = "discovered_at",
+    sort_by: Optional[str] = "document_date",
     sort_order: Optional[str] = "desc",
 ) -> tuple[int, list[DiscoveredDocument]]:
     """Query discovered document catalog with pagination, multi-attribute filtering, and dynamic sorting.
@@ -563,22 +563,47 @@ def list_discovered_documents_paginated(
     total_count = session.scalar(count_stmt) or 0
     offset = max(0, (page - 1) * page_size)
 
+    # Normalized effective document date expression:
+    # Converts DD.MM.YYYY strings (e.g. '18.01.2023') into sortable 'YYYY-MM-DD',
+    # falling back to academic_year (e.g. '2026-07', '2024') or NULL.
+    effective_doc_date = case(
+        (
+            func.length(DiscoveredDocument.publication_date) == 10,
+            func.substr(DiscoveredDocument.publication_date, 7, 4)
+            + "-"
+            + func.substr(DiscoveredDocument.publication_date, 4, 2)
+            + "-"
+            + func.substr(DiscoveredDocument.publication_date, 1, 2),
+        ),
+        (
+            DiscoveredDocument.publication_date.isnot(None),
+            DiscoveredDocument.publication_date,
+        ),
+        (
+            DiscoveredDocument.academic_year.isnot(None),
+            DiscoveredDocument.academic_year,
+        ),
+        else_=None,
+    )
+
     # Determine sort column
     sort_col_map = {
+        "document_date": effective_doc_date,
+        "date": effective_doc_date,
+        "publication_date": effective_doc_date,
         "title": func.lower(DiscoveredDocument.title),
-        "publication_date": DiscoveredDocument.publication_date,
         "status": DiscoveredDocument.status,
         "first_discovered_at": DiscoveredDocument.first_discovered_at,
         "discovered_at": DiscoveredDocument.last_discovered_at,
         "last_discovered_at": DiscoveredDocument.last_discovered_at,
     }
-    target_col = sort_col_map.get(sort_by or "discovered_at", DiscoveredDocument.last_discovered_at)
+    target_col = sort_col_map.get(sort_by or "document_date", effective_doc_date)
     is_desc = (sort_order or "desc").strip().lower() == "desc"
     order_expr = target_col.desc().nulls_last() if is_desc else target_col.asc().nulls_last()
 
     docs = list(
         session.scalars(
-            stmt.order_by(order_expr, DiscoveredDocument.id.asc())
+            stmt.order_by(order_expr, DiscoveredDocument.title.asc(), DiscoveredDocument.id.asc())
             .limit(page_size)
             .offset(offset)
         ).all()
