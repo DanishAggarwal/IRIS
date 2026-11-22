@@ -63,6 +63,8 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
   const [selectedSource, setSelectedSource] = useState<string>('')
   const [selectedStatus, setSelectedStatus] = useState<string>('')
   const [selectedChangeStatus, setSelectedChangeStatus] = useState<string>('')
+  const [sortBy, setSortBy] = useState<string>('discovered_at')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(20)
   const [totalPages, setTotalPages] = useState<number>(1)
@@ -103,6 +105,8 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
           status: selectedStatus || undefined,
           changeStatus: selectedChangeStatus || undefined,
           search: searchQuery || undefined,
+          sortBy,
+          sortOrder,
         })
         setDocuments(response.items)
         setTotalPages(response.total_pages)
@@ -117,7 +121,7 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
         if (showLoading) setIsLoading(false)
       }
     },
-    [currentPage, pageSize, selectedSource, selectedStatus, selectedChangeStatus, searchQuery],
+    [currentPage, pageSize, selectedSource, selectedStatus, selectedChangeStatus, searchQuery, sortBy, sortOrder],
   )
 
   // 2. Fetch Auxiliary Stats & Sources (on mount)
@@ -495,13 +499,20 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
           setSelectedChangeStatus(cs)
           setCurrentPage(1)
         }}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortChange={(field, order) => {
+          setSortBy(field)
+          setSortOrder(order)
+          setCurrentPage(1)
+        }}
         sources={sources}
         isScanning={isScanning}
         onTriggerScan={handleTriggerScan}
         onRefresh={() => fetchCatalogue(true)}
       />
 
-      {/* Bulk Action Bar (visible when items selected) */}
+      {/* Bulk Action Bar (batch approve & ingest at the top) */}
       <BulkActionBar
         selectedCount={selectedIds.length}
         isProcessing={isBulkProcessing}

@@ -21,7 +21,11 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   if (selectedCount === 0) return null
 
   return (
-    <div className="iris-crawler-bulk-bar" role="region" aria-label="Bulk actions">
+    <div
+      className="iris-crawler-bulk-bar iris-bulk-bar-active"
+      role="region"
+      aria-label="Bulk actions"
+    >
       <div className="iris-bulk-left">
         <span className="iris-bulk-label font-medium">
           {selectedCount} {selectedCount === 1 ? 'document selected' : 'documents selected'}
@@ -29,13 +33,13 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
         {isProcessing && (
           <span className="iris-bulk-processing">
-            <Loader2 size={14} className="iris-spinner text-blue-600 mr-1.5" />
+            <Loader2 size={14} className="iris-spinner text-blue-400 mr-1.5" />
             {processingMessage || 'Processing acquisition...'}
           </span>
         )}
 
         {error && (
-          <span className="iris-bulk-error text-rose-600 text-xs flex items-center gap-1">
+          <span className="iris-bulk-error text-rose-400 text-xs flex items-center gap-1">
             <AlertCircle size={14} /> {error}
           </span>
         )}

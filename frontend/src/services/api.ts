@@ -314,6 +314,8 @@ export interface DiscoveredDocumentFilterParams {
   category?: string
   changeStatus?: string
   search?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 /**
@@ -330,6 +332,8 @@ export async function listDiscoveredDocuments(
   if (params.category) query.set('category', params.category)
   if (params.changeStatus) query.set('change_status', params.changeStatus)
   if (params.search && params.search.trim()) query.set('search', params.search.trim())
+  if (params.sortBy) query.set('sort_by', params.sortBy)
+  if (params.sortOrder) query.set('sort_order', params.sortOrder)
 
   const queryString = query.toString()
   const endpoint = `/admin/crawler/documents${queryString ? `?${queryString}` : ''}`

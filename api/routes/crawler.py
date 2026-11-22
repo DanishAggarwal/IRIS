@@ -327,10 +327,12 @@ def list_documents(
     category: Optional[str] = Query(default=None, description="Filter by category"),
     change_status: Optional[str] = Query(default=None, description="Filter by change_status (e.g. unchanged, potentially_changed, unknown)"),
     search: Optional[str] = Query(default=None, description="Search term in title or URL"),
+    sort_by: Optional[str] = Query(default="discovered_at", description="Field to sort by: discovered_at, title, publication_date, status"),
+    sort_order: Optional[str] = Query(default="desc", description="Sort order: asc or desc"),
     db: Session = Depends(get_database_session),
     admin_user: User = Depends(require_admin),
 ) -> DiscoveredDocumentListResponse:
-    """Retrieve discovered documents with pagination, filters, and catalogue totals."""
+    """Retrieve discovered documents with pagination, filters, sorting, and catalogue totals."""
     total, docs = list_discovered_documents_paginated(
         session=db,
         page=page,
@@ -340,6 +342,8 @@ def list_documents(
         category=category,
         change_status=change_status,
         search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     total_pages = math.ceil(total / page_size) if total > 0 else 0
     stats = get_catalog_stats(db)

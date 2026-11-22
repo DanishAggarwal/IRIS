@@ -1901,19 +1901,18 @@ body {
 .iris-status-dot-completed { background-color: #10b981; }
 .iris-status-dot-failed { background-color: #ef4444; }
 
-/* Filter Bar */
+/* Filter Bar - Modern Horizontal Layout */
 .iris-crawler-filter-bar {
   background-color: var(--iris-bg-surface);
   border: 1px solid var(--iris-border-subtle);
   border-radius: 10px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   box-shadow: var(--iris-shadow-sm);
-}
-
-.iris-crawler-filter-row {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -1921,8 +1920,9 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 240px;
-  flex: 1;
+  min-width: 220px;
+  flex: 1 1 260px;
+  max-width: 360px;
 }
 
 .iris-crawler-search-icon {
@@ -1934,7 +1934,8 @@ body {
 
 .iris-crawler-search-input {
   width: 100%;
-  padding: 8px 32px 8px 36px;
+  height: 38px;
+  padding: 0 32px 0 36px;
   font-size: 0.85rem;
   border: 1px solid var(--iris-border-subtle);
   border-radius: 6px;
@@ -1949,7 +1950,7 @@ body {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
-.iris-btn-search-clear {
+.iris-crawler-search-clear {
   position: absolute;
   right: 10px;
   background: none;
@@ -1959,28 +1960,65 @@ body {
   padding: 2px;
 }
 
-.iris-crawler-filter-selects {
+.iris-crawler-filters-group {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
+  flex: 2 1 auto;
+}
+
+.iris-crawler-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.iris-crawler-select-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--iris-text-muted);
+  pointer-events: none;
 }
 
 .iris-crawler-select {
-  padding: 8px 12px;
+  height: 38px;
+  padding: 0 14px 0 30px;
   font-size: 0.83rem;
+  font-weight: 500;
   border: 1px solid var(--iris-border-subtle);
   border-radius: 6px;
   background-color: #ffffff;
   color: var(--iris-text-primary);
   outline: none;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .iris-crawler-select:focus {
   border-color: var(--iris-accent-600);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
 }
 
-.iris-crawler-filter-actions {
+.iris-crawler-btn-clear-filters {
+  height: 38px;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--iris-accent-600);
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iris-crawler-btn-clear-filters:hover {
+  background-color: #dbeafe;
+}
+
+.iris-crawler-actions-group {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1988,6 +2026,7 @@ body {
 }
 
 .iris-crawler-btn-scan {
+  height: 38px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1995,7 +2034,7 @@ body {
   color: #ffffff;
   border: none;
   border-radius: 6px;
-  padding: 8px 14px;
+  padding: 0 16px;
   font-size: 0.84rem;
   font-weight: 500;
   cursor: pointer;
@@ -2012,16 +2051,17 @@ body {
 }
 
 .iris-crawler-btn-refresh {
+  height: 38px;
+  width: 38px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
   background-color: #f8fafc;
   border: 1px solid var(--iris-border-subtle);
   border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 0.83rem;
   color: var(--iris-text-secondary);
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .iris-crawler-btn-refresh:hover:not(:disabled) {
@@ -2084,33 +2124,68 @@ body {
 
 /* Bulk Action Bar */
 .iris-crawler-bulk-bar {
-  background-color: #1e293b;
-  color: #ffffff;
   border-radius: 8px;
   padding: 10px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.iris-bulk-bar-idle {
+  background-color: #f8fafc;
+  border: 1px dashed var(--iris-border-subtle);
+  color: var(--iris-text-secondary);
+}
+
+.iris-bulk-bar-active {
+  background-color: #0f172a;
+  border: 1px solid #334155;
+  color: #ffffff;
   box-shadow: var(--iris-shadow-md);
 }
 
-.iris-bulk-bar-content {
+.iris-bulk-left {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
-.iris-bulk-count-badge {
-  background-color: #334155;
-  color: #f8fafc;
-  font-size: 0.82rem;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 4px;
+.iris-bulk-select-all-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
 }
 
-.iris-bulk-feedback {
+.iris-bulk-badge-wrapper {
+  display: inline-flex;
+  align-items: center;
+}
+
+.iris-bulk-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 12px;
+}
+
+.iris-bulk-badge-zero {
+  background-color: #e2e8f0;
+  color: #64748b;
+}
+
+.iris-bulk-badge-highlight {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.iris-bulk-processing {
+  display: inline-flex;
+  align-items: center;
   font-size: 0.82rem;
   color: #93c5fd;
 }
@@ -2118,26 +2193,36 @@ body {
 .iris-bulk-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .iris-btn-bulk-approve {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background-color: #10b981;
-  color: #ffffff;
   border: none;
   border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 0.82rem;
+  padding: 8px 16px;
+  font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
-.iris-btn-bulk-approve:hover:not(:disabled) {
+.iris-btn-bulk-approve-ready {
+  background-color: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+
+.iris-btn-bulk-approve-ready:hover:not(:disabled) {
   background-color: #059669;
+  transform: translateY(-1px);
+}
+
+.iris-btn-bulk-approve-disabled {
+  background-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .iris-btn-bulk-clear {
@@ -2148,11 +2233,42 @@ body {
   padding: 6px 12px;
   font-size: 0.82rem;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .iris-btn-bulk-clear:hover {
   background-color: #334155;
   color: #ffffff;
+}
+
+.iris-bulk-bar-idle .iris-btn-bulk-clear {
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.iris-bulk-bar-idle .iris-btn-bulk-clear:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+}
+
+.iris-th-select,
+.iris-td-select,
+.iris-th-checkbox,
+.iris-td-checkbox {
+  width: 44px;
+  text-align: center;
+  padding-left: 12px !important;
+  padding-right: 6px !important;
+}
+
+.iris-th-select input[type="checkbox"],
+.iris-td-select input[type="checkbox"],
+.iris-checkbox-custom {
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+  accent-color: var(--iris-accent-600);
+  border-radius: 4px;
 }
 
 /* Document Table Card */

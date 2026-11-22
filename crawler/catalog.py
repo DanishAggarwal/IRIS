@@ -528,8 +528,10 @@ def list_discovered_documents_paginated(
     category: Optional[str] = None,
     change_status: Optional[str] = None,
     search: Optional[str] = None,
+    sort_by: Optional[str] = "discovered_at",
+    sort_order: Optional[str] = "desc",
 ) -> tuple[int, list[DiscoveredDocument]]:
-    """Query discovered document catalog with pagination and multi-attribute filtering.
+    """Query discovered document catalog with pagination, multi-attribute filtering, and dynamic sorting.
 
     Returns:
         (total_matching_count, list_of_documents)
@@ -560,9 +562,23 @@ def list_discovered_documents_paginated(
 
     total_count = session.scalar(count_stmt) or 0
     offset = max(0, (page - 1) * page_size)
+
+    # Determine sort column
+    sort_col_map = {
+        "title": func.lower(DiscoveredDocument.title),
+        "publication_date": DiscoveredDocument.publication_date,
+        "status": DiscoveredDocument.status,
+        "first_discovered_at": DiscoveredDocument.first_discovered_at,
+        "discovered_at": DiscoveredDocument.last_discovered_at,
+        "last_discovered_at": DiscoveredDocument.last_discovered_at,
+    }
+    target_col = sort_col_map.get(sort_by or "discovered_at", DiscoveredDocument.last_discovered_at)
+    is_desc = (sort_order or "desc").strip().lower() == "desc"
+    order_expr = target_col.desc().nulls_last() if is_desc else target_col.asc().nulls_last()
+
     docs = list(
         session.scalars(
-            stmt.order_by(DiscoveredDocument.last_discovered_at.desc())
+            stmt.order_by(order_expr, DiscoveredDocument.id.asc())
             .limit(page_size)
             .offset(offset)
         ).all()

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Search, RotateCw, Filter, Play, X } from 'lucide-react'
+import { Search, RotateCw, Filter, Play, X, ArrowUpDown } from 'lucide-react'
 import type { CrawlerSource } from '../../types/api'
 
 interface CrawlerFilterBarProps {
@@ -11,6 +11,9 @@ interface CrawlerFilterBarProps {
   onStatusChange: (status: string) => void
   selectedChangeStatus: string
   onChangeStatusChange: (changeStatus: string) => void
+  sortBy: string
+  sortOrder: 'asc' | 'desc'
+  onSortChange: (sortBy: string, sortOrder: 'asc' | 'desc') => void
   sources: CrawlerSource[]
   isScanning: boolean
   onTriggerScan: () => void
@@ -26,22 +29,35 @@ export const CrawlerFilterBar: React.FC<CrawlerFilterBarProps> = ({
   onStatusChange,
   selectedChangeStatus,
   onChangeStatusChange,
+  sortBy,
+  sortOrder,
+  onSortChange,
   sources,
   isScanning,
   onTriggerScan,
   onRefresh,
 }) => {
+  const currentSortKey = `${sortBy}:${sortOrder}`
+
   const hasActiveFilters =
     Boolean(searchQuery) ||
     Boolean(selectedSource) ||
     Boolean(selectedStatus) ||
-    Boolean(selectedChangeStatus)
+    Boolean(selectedChangeStatus) ||
+    currentSortKey !== 'discovered_at:desc'
 
   const clearFilters = () => {
     onSearchChange('')
     onSourceChange('')
     onStatusChange('')
     onChangeStatusChange('')
+    onSortChange('discovered_at', 'desc')
+  }
+
+  const handleSortSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    const [field, order] = val.split(':') as [string, 'asc' | 'desc']
+    onSortChange(field, order)
   }
 
   return (
@@ -118,12 +134,30 @@ export const CrawlerFilterBar: React.FC<CrawlerFilterBarProps> = ({
           </select>
         </div>
 
+        {/* Dynamic Sorting Options */}
+        <div className="iris-crawler-select-wrapper">
+          <ArrowUpDown size={14} className="iris-crawler-select-icon" />
+          <select
+            className="iris-crawler-select"
+            value={currentSortKey}
+            onChange={handleSortSelect}
+            aria-label="Sort documents"
+          >
+            <option value="discovered_at:desc">Sort: Newest First</option>
+            <option value="discovered_at:asc">Sort: Oldest First</option>
+            <option value="title:asc">Sort: Title (A → Z)</option>
+            <option value="title:desc">Sort: Title (Z → A)</option>
+            <option value="publication_date:desc">Sort: Pub Date (Newest)</option>
+            <option value="publication_date:asc">Sort: Pub Date (Oldest)</option>
+          </select>
+        </div>
+
         {hasActiveFilters && (
           <button
             type="button"
             className="iris-crawler-btn-clear-filters"
             onClick={clearFilters}
-            title="Reset all filters"
+            title="Reset all filters and sort"
           >
             Reset
           </button>
