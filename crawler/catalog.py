@@ -5,7 +5,7 @@ import logging
 from typing import Optional
 import uuid
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
