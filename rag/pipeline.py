@@ -46,7 +46,7 @@ def _is_generic_course_query(query: str) -> bool:
 
 def answer_question(
     query: str,
-    top_k: int = 5,
+    top_k: int = 6,
     session: Optional[Session] = None,
     client: Optional[genai.Client] = None,
     generation_model: Optional[str] = None,
@@ -62,7 +62,7 @@ def answer_question(
 
     Args:
         query: Natural language user question.
-        top_k: Number of chunks to retrieve (default: 5).
+        top_k: Number of chunks to retrieve (default: 6).
         session: Optional SQLAlchemy session.
         client: Optional preconfigured GenAI client.
         generation_model: Optional model override.

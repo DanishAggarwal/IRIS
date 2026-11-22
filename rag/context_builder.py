@@ -11,7 +11,7 @@ from retrieval.result import RetrievalResult
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MAX_CONTEXT_TOKENS = 4000
+DEFAULT_MAX_CONTEXT_TOKENS = 5000
 
 
 def format_evidence_block(result: RetrievalResult, evidence_num: int) -> str:
@@ -27,11 +27,22 @@ def format_evidence_block(result: RetrievalResult, evidence_num: int) -> str:
     sec_str = chunk.section_title or "None"
     table_str = "Yes" if chunk.has_table else "No"
 
+    # Format document metadata including recency/version indicators if present
+    meta_parts = []
+    if doc.academic_year:
+        meta_parts.append(f"Academic Year: {doc.academic_year}")
+    if doc.version:
+        meta_parts.append(f"Version: {doc.version}")
+    if doc.overall_type:
+        meta_parts.append(f"Type: {doc.overall_type}")
+    doc_meta_str = " | ".join(meta_parts) if meta_parts else "None"
+
     # Treat retrieved content as untrusted evidence data
     # Delimit clearly with boundary markers
     block = [
         f"--- EVIDENCE ITEM {evidence_num} ---",
         f"[DOCUMENT]: {doc.filename}",
+        f"[DOCUMENT_METADATA]: {doc_meta_str}",
         f"[PAGES]: {page_str}",
         f"[SECTION]: {sec_str}",
         f"[CHUNK_ID]: {chunk.id}",

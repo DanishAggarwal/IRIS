@@ -106,7 +106,7 @@ def chat_endpoint(
     try:
         rag_response: RAGResponse = answer_question(
             query=payload.query,
-            top_k=payload.top_k or 5,
+            top_k=payload.top_k or 6,
             session=db,
         )
     except ValueError as exc:

@@ -17,11 +17,11 @@ class ChatRequest(BaseModel):
         examples=["What are the course objectives of Cloud Computing?"],
     )
     top_k: Optional[int] = Field(
-        default=5,
+        default=6,
         ge=1,
         le=20,
         description="Number of evidence chunks to retrieve from the document database (1 to 20).",
-        examples=[5],
+        examples=[6],
     )
     conversation_id: Optional[uuid.UUID] = Field(
         default=None,
