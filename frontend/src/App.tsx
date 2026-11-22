@@ -52,7 +52,7 @@ export const App: React.FC = () => {
   // Unauthenticated screen
   if (!user) {
     return (
-      <div className="iris-app-shell">
+      <div className={`iris-app-shell ${currentView === 'crawler' ? 'iris-app-shell-crawler' : ''}`}>
         <LoginScreen onLogin={login} authError={authError} isLoading={isAuthLoading} />
         <Footer />
       </div>
@@ -60,7 +60,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="iris-app-shell">
+    <div className={`iris-app-shell ${currentView === 'crawler' ? 'iris-app-shell-crawler' : ''}`}>
       <Header
         connectionStatus={connectionStatus}
         user={user}

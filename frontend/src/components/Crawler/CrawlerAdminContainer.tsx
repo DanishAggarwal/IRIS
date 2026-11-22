@@ -56,6 +56,7 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
   const [sources, setSources] = useState<CrawlerSource[]>([])
   const [stats, setStats] = useState<Record<string, number>>({})
   const [latestScan, setLatestScan] = useState<CrawlerScan | null>(null)
+  const [activeScanBanner, setActiveScanBanner] = useState<CrawlerScan | null>(null)
 
   // Filters & Pagination
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -133,6 +134,7 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
 
       if (scanInfo && scanInfo.status === 'running') {
         setIsScanning(true)
+        setActiveScanBanner(scanInfo)
       }
     } catch (err) {
       console.error('Error fetching auxiliary crawler data:', err)
@@ -162,10 +164,16 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
         const latest = await getLatestCrawlerScan()
         if (latest) {
           setLatestScan(latest)
+          setActiveScanBanner(latest)
           if (latest.status === 'completed' || latest.status === 'failed') {
             setIsScanning(false)
             fetchCatalogue(false)
             fetchAuxiliaryData()
+
+            // Auto-dismiss completed scan banner after 6 seconds so it doesn't push down the catalogue
+            setTimeout(() => {
+              setActiveScanBanner(null)
+            }, 6000)
           }
         }
       } catch (err) {
@@ -257,6 +265,7 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
     try {
       const newScan = await triggerCrawlerScan()
       setLatestScan(newScan)
+      setActiveScanBanner(newScan)
       showFeedback('success', 'Discovery scan initiated across all enabled PEC sources.')
     } catch (err: unknown) {
       setIsScanning(false)
@@ -457,11 +466,11 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
         }}
       />
 
-      {/* Scan Progress / Results Banner */}
+      {/* Scan Progress / Results Banner (only displayed during active scan or immediately after) */}
       <ScanProgressBanner
-        scan={latestScan}
+        scan={activeScanBanner}
         isScanning={isScanning}
-        onDismiss={() => setLatestScan(null)}
+        onDismiss={() => setActiveScanBanner(null)}
       />
 
       {/* Filters and Scan Action Bar */}

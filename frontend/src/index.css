@@ -109,6 +109,14 @@ body {
   background-color: var(--iris-bg-base);
 }
 
+.iris-app-shell-crawler {
+  height: auto !important;
+  min-height: 100vh !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
 /* ==========================================================================
    Header
    ========================================================================== */
@@ -1335,7 +1343,8 @@ body {
 
 .iris-app-body-crawler {
   min-height: 0;
-  height: 100%;
+  height: auto !important;
+  overflow: visible !important;
 }
 
 .iris-btn-sidebar-toggle {
@@ -1759,11 +1768,11 @@ body {
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px 24px 60px 24px;
+  padding: 24px 24px 80px 24px;
   gap: 20px;
   min-height: 0;
-  height: 100%;
-  overflow-y: auto;
+  height: auto;
+  overflow: visible;
 }
 
 .iris-stat-card-clickable {
@@ -2155,12 +2164,13 @@ body {
   box-shadow: var(--iris-shadow-sm);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
-.iris-table-responsive {
+.iris-table-responsive,
+.iris-crawler-table-wrapper {
   overflow-x: auto;
   min-height: 280px;
+  width: 100%;
 }
 
 .iris-crawler-table {

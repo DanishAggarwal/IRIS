@@ -15,15 +15,12 @@ export const ScanProgressBanner: React.FC<ScanProgressBannerProps> = ({
 }) => {
   if (isScanning) {
     return (
-      <div className="iris-crawler-scan-banner iris-scan-banner-running">
+      <div className="iris-crawler-scan-banner iris-scan-banner-running" role="status">
         <div className="iris-scan-banner-left">
-          <Clock size={18} className="iris-spinner text-amber-600" />
-          <div>
-            <strong>PEC Discovery Scan in Progress</strong>
-            <p className="text-xs text-slate-600">
-              Scanning enabled PEC institutional pages to discover syllabus, calendar, and Senate records...
-            </p>
-          </div>
+          <Clock size={16} className="iris-spinner text-amber-600 flex-shrink-0" />
+          <span className="text-xs font-medium text-amber-900">
+            Discovery scan in progress: scanning enabled PEC institutional sources...
+          </span>
         </div>
       </div>
     )
@@ -33,15 +30,12 @@ export const ScanProgressBanner: React.FC<ScanProgressBannerProps> = ({
 
   if (scan.status === 'failed') {
     return (
-      <div className="iris-crawler-scan-banner iris-scan-banner-failed">
+      <div className="iris-crawler-scan-banner iris-scan-banner-failed" role="alert">
         <div className="iris-scan-banner-left">
-          <AlertCircle size={18} className="text-rose-600 flex-shrink-0" />
-          <div>
-            <strong className="text-rose-800">Discovery Scan Encountered Errors</strong>
-            <p className="text-xs text-rose-700">
-              {scan.error_message || 'One or more institutional sources could not be scanned.'}
-            </p>
-          </div>
+          <AlertCircle size={16} className="text-rose-600 flex-shrink-0" />
+          <span className="text-xs text-rose-800">
+            <strong>Scan error:</strong> {scan.error_message || 'One or more institutional sources could not be scanned.'}
+          </span>
         </div>
         {onDismiss && (
           <button
@@ -59,17 +53,13 @@ export const ScanProgressBanner: React.FC<ScanProgressBannerProps> = ({
 
   if (scan.status === 'completed') {
     return (
-      <div className="iris-crawler-scan-banner iris-scan-banner-completed">
+      <div className="iris-crawler-scan-banner iris-scan-banner-completed" role="status">
         <div className="iris-scan-banner-left">
-          <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
-          <div>
-            <strong className="text-emerald-900">Scan Completed Successfully</strong>
-            <p className="text-xs text-emerald-800">
-              Found {scan.total_discovered} documents across {scan.total_sources} sources (
-              <strong>{scan.new_documents} new</strong>, {scan.updated_documents} updated,{' '}
-              {scan.potentially_changed} potentially changed).
-            </p>
-          </div>
+          <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+          <span className="text-xs text-emerald-800">
+            <strong>Scan completed:</strong> Discovered {scan.total_discovered} documents across {scan.total_sources} sources (
+            <strong>{scan.new_documents} new</strong>, {scan.updated_documents} updated, {scan.potentially_changed} changed).
+          </span>
         </div>
         {onDismiss && (
           <button
