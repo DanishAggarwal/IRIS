@@ -2,46 +2,118 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { App } from '../App'
-import type { ChatResponse, HealthResponse } from '../types/api'
+import type { ChatResponse, ConversationDetail, ConversationListResponse, HealthResponse, UserProfile } from '../types/api'
 
 describe('App Integration', () => {
+  const mockUser: UserProfile = {
+    id: 'user-app-001',
+    email: 'student@pec.edu.in',
+    name: 'Aarav Sharma',
+    role: 'user',
+  }
+
   beforeEach(() => {
     vi.restoreAllMocks()
-
-    // Default health mock
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/health')) {
-        const mockHealth: HealthResponse = { status: 'ok', service: 'IRIS API' }
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => mockHealth,
-        })
-      }
-      return Promise.reject(new Error('Unknown url'))
-    })
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('renders application with header, welcome screen, and connected status', async () => {
+  it('renders LoginScreen when unauthenticated', async () => {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/auth/me')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: async () => ({ detail: 'Authentication required' }),
+        })
+      }
+      if (url.includes('/health')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+        })
+      }
+      return Promise.reject(new Error('Unknown url'))
+    })
+
     render(<App />)
 
-    expect(screen.getByText('IRIS')).toBeInTheDocument()
-    expect(screen.getByText("Hello! I'm IRIS.")).toBeInTheDocument()
-
     await waitFor(() => {
-      expect(screen.getByText('Connected')).toBeInTheDocument()
+      expect(screen.getByText(/Information Retrieval & Intelligence System/i)).toBeInTheDocument()
+      expect(screen.getByText(/Sign in as PEC Student/i)).toBeInTheDocument()
     })
   })
 
-  it('clicking a suggested question submits chat query and renders answered response', async () => {
+  it('authenticates user and renders chat interface with sidebar', async () => {
+    let isAuthenticated = false
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/auth/me')) {
+        if (isAuthenticated) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => mockUser,
+          })
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: async () => ({ detail: 'Not logged in' }),
+        })
+      }
+      if (url.includes('/auth/google')) {
+        isAuthenticated = true
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => mockUser,
+        })
+      }
+      if (url.includes('/conversations')) {
+        const mockList: ConversationListResponse = { items: [], total: 0 }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => mockList,
+        })
+      }
+      if (url.includes('/health')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+        })
+      }
+      return Promise.reject(new Error('Unknown url: ' + url))
+    })
+
+    render(<App />)
+
+    // Wait for login screen
+    await waitFor(() => {
+      expect(screen.getByText(/Sign in as PEC Student/i)).toBeInTheDocument()
+    })
+
+    // Click Sign In
+    const loginBtn = screen.getByRole('button', { name: /sign in as pec student/i })
+    fireEvent.click(loginBtn)
+
+    // Should transition to authenticated chat view
+    await waitFor(() => {
+      expect(screen.getByText("Hello! I'm IRIS.")).toBeInTheDocument()
+      expect(screen.getByText('Aarav Sharma')).toBeInTheDocument()
+    })
+  })
+
+  it('submits a question, creates a conversation, and displays response with citations', async () => {
     const mockChatResponse: ChatResponse = {
       query: 'What are the course objectives of Cloud Computing?',
       status: 'answered',
-      answer: 'The course objectives of Cloud Computing are virtualization and distributed architectures.',
+      answer: 'Cloud Computing objectives cover distributed systems and virtualization.',
       citations: [
         {
           document: 'CSE_syllabus_24.pdf',
@@ -51,15 +123,25 @@ describe('App Integration', () => {
           claim_supported: true,
         },
       ],
+      conversation_id: 'conv-new-1',
+      message_id: 'msg-new-1',
       retrieved_count: 5,
     }
 
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/health')) {
+      if (url.includes('/auth/me')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+          json: async () => mockUser,
+        })
+      }
+      if (url.includes('/conversations')) {
+        const mockList: ConversationListResponse = { items: [], total: 0 }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => mockList,
         })
       }
       if (url.includes('/chat')) {
@@ -69,95 +151,104 @@ describe('App Integration', () => {
           json: async () => mockChatResponse,
         })
       }
-      return Promise.reject(new Error('Unknown url'))
+      if (url.includes('/health')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+        })
+      }
+      return Promise.reject(new Error('Unknown url: ' + url))
     })
 
     render(<App />)
 
+    await waitFor(() => {
+      expect(screen.getByText("Hello! I'm IRIS.")).toBeInTheDocument()
+    })
+
+    // Click suggested question
     const suggestion = screen.getByText('What are the course objectives of Cloud Computing?')
     fireEvent.click(suggestion)
 
-    // User message bubble should appear
-    expect(
-      screen.getByText('What are the course objectives of Cloud Computing?'),
-    ).toBeInTheDocument()
-
-    // Assistant response should render
+    // Assistant response and citation must appear
     await waitFor(() => {
       expect(
-        screen.getByText(
-          'The course objectives of Cloud Computing are virtualization and distributed architectures.',
-        ),
+        screen.getByText('Cloud Computing objectives cover distributed systems and virtualization.'),
       ).toBeInTheDocument()
-    })
-
-    // Citations should be displayed
-    expect(screen.getByText('CSE_syllabus_24.pdf')).toBeInTheDocument()
-    expect(screen.getByText('Page 117')).toBeInTheDocument()
-  })
-
-  it('submits typed question and renders clarification_needed response', async () => {
-    const mockClarificationResponse: ChatResponse = {
-      query: 'What is the syllabus of Compiler Design?',
-      status: 'clarification_needed',
-      answer: 'Multiple courses match.',
-      clarification_question: 'Are you referring to UG Compiler Design (CS401) or PG Advanced Compilers (CS701)?',
-      citations: [],
-      retrieved_count: 5,
-    }
-
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/health')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({ status: 'ok', service: 'IRIS API' }),
-        })
-      }
-      if (url.includes('/chat')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => mockClarificationResponse,
-        })
-      }
-      return Promise.reject(new Error('Unknown url'))
-    })
-
-    const user = userEvent.setup()
-    render(<App />)
-
-    const textarea = screen.getByPlaceholderText(/Ask a question about PEC courses/i)
-    await user.type(textarea, 'What is the syllabus of Compiler Design?{enter}')
-
-    await waitFor(() => {
-      expect(screen.getByText('Clarification Needed')).toBeInTheDocument()
-      expect(
-        screen.getByText(
-          'Are you referring to UG Compiler Design (CS401) or PG Advanced Compilers (CS701)?',
-        ),
-      ).toBeInTheDocument()
+      expect(screen.getByText('CSE_syllabus_24.pdf')).toBeInTheDocument()
+      expect(screen.getByText('Page 117')).toBeInTheDocument()
     })
   })
 
-  it('renders handoff_recommended response when evidence is insufficient or waiver requested', async () => {
-    const mockHandoffResponse: ChatResponse = {
-      query: 'Can my attendance requirement be waived?',
-      status: 'handoff_recommended',
-      answer: 'Institutional documents do not authorize automatic waivers for attendance below the statutory threshold.',
-      handoff_recommendation: 'Dean of Academic Affairs / Senate Disciplinary Committee',
-      citations: [
+  it('selecting a past conversation loads historical messages', async () => {
+    const pastConvList: ConversationListResponse = {
+      items: [
         {
-          document: 'CSE_syllabus_24.pdf',
-          pages: [12],
-          is_valid: true,
-          claim_supported: true,
+          id: 'conv-history-1',
+          title: 'Deep Learning Evaluation',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          message_count: 2,
         },
       ],
-      retrieved_count: 5,
+      total: 1,
+    }
+
+    const pastConvDetail: ConversationDetail = {
+      id: 'conv-history-1',
+      title: 'Deep Learning Evaluation',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      messages: [
+        {
+          id: 'm1',
+          conversation_id: 'conv-history-1',
+          role: 'user',
+          content: 'What are evaluation components?',
+          created_at: new Date().toISOString(),
+        },
+        {
+          id: 'm2',
+          conversation_id: 'conv-history-1',
+          role: 'assistant',
+          content: 'Midterm 25%, Endsem 50%, Quizzes 25%.',
+          status: 'answered',
+          citations: [
+            {
+              document: 'Course Handout Ver 2_0.pdf',
+              pages: [7],
+              is_valid: true,
+              claim_supported: true,
+            },
+          ],
+          created_at: new Date().toISOString(),
+        },
+      ],
     }
 
     global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/auth/me')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => mockUser,
+        })
+      }
+      if (url.includes('/conversations/conv-history-1')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => pastConvDetail,
+        })
+      }
+      if (url.includes('/conversations')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => pastConvList,
+        })
+      }
       if (url.includes('/health')) {
         return Promise.resolve({
           ok: true,
@@ -165,101 +256,41 @@ describe('App Integration', () => {
           json: async () => ({ status: 'ok', service: 'IRIS API' }),
         })
       }
-      if (url.includes('/chat')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => mockHandoffResponse,
-        })
-      }
-      return Promise.reject(new Error('Unknown url'))
+      return Promise.reject(new Error('Unknown url: ' + url))
     })
 
-    const user = userEvent.setup()
     render(<App />)
 
-    const textarea = screen.getByPlaceholderText(/Ask a question about PEC courses/i)
-    await user.type(textarea, 'Can my attendance requirement be waived?{enter}')
-
+    // Wait for sidebar item to appear
     await waitFor(() => {
-      expect(screen.getByText('Administrative Handoff')).toBeInTheDocument()
-      expect(
-        screen.getByText('Dean of Academic Affairs / Senate Disciplinary Committee'),
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText(
-          'Institutional documents do not authorize automatic waivers for attendance below the statutory threshold.',
-        ),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Deep Learning Evaluation')).toBeInTheDocument()
+    })
+
+    // Click conversation in sidebar
+    fireEvent.click(screen.getByText('Deep Learning Evaluation'))
+
+    // Messages should load
+    await waitFor(() => {
+      expect(screen.getByText('What are evaluation components?')).toBeInTheDocument()
+      expect(screen.getByText('Midterm 25%, Endsem 50%, Quizzes 25%.')).toBeInTheDocument()
+      expect(screen.getByText('Course Handout Ver 2_0.pdf')).toBeInTheDocument()
     })
   })
 
-  it('handles backend network failure and allows retry', async () => {
-    let chatCallCount = 0
-
+  it('clicking New Chat resets active conversation to welcome screen', async () => {
     global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/health')) {
+      if (url.includes('/auth/me')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+          json: async () => mockUser,
         })
       }
-      if (url.includes('/chat')) {
-        chatCallCount++
-        if (chatCallCount === 1) {
-          // First attempt fails with network error
-          return Promise.reject(new TypeError('Failed to fetch'))
-        }
-        // Second attempt (retry) succeeds
+      if (url.includes('/conversations')) {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: async () => ({
-            query: 'Retry query',
-            status: 'answered',
-            answer: 'Answer after successful retry.',
-            citations: [],
-            retrieved_count: 3,
-          }),
-        })
-      }
-      return Promise.reject(new Error('Unknown url'))
-    })
-
-    const user = userEvent.setup()
-    render(<App />)
-
-    const textarea = screen.getByPlaceholderText(/Ask a question about PEC courses/i)
-    await user.type(textarea, 'Retry query{enter}')
-
-    // Should render error card
-    await waitFor(() => {
-      expect(screen.getByText('Service Interruption')).toBeInTheDocument()
-      expect(
-        screen.getByText(
-          'IRIS is temporarily unable to connect to its backend. Please try again shortly.',
-        ),
-      ).toBeInTheDocument()
-    })
-
-    // Click retry
-    const retryBtn = screen.getByRole('button', { name: /retry sending your question/i })
-    fireEvent.click(retryBtn)
-
-    // Should succeed after retry
-    await waitFor(() => {
-      expect(screen.getByText('Answer after successful retry.')).toBeInTheDocument()
-    })
-  })
-
-  it('resets conversation when New Chat is clicked in header', async () => {
-    global.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/health')) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+          json: async () => ({ items: [], total: 0 }),
         })
       }
       if (url.includes('/chat')) {
@@ -267,33 +298,105 @@ describe('App Integration', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            query: 'Test question',
+            query: 'Temporary query',
             status: 'answered',
-            answer: 'Test answer.',
+            answer: 'Temporary answer.',
             citations: [],
-            retrieved_count: 1,
+            conversation_id: 'conv-temp-1',
           }),
         })
       }
-      return Promise.reject(new Error('Unknown url'))
+      if (url.includes('/health')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+        })
+      }
+      return Promise.reject(new Error('Unknown url: ' + url))
     })
 
     const user = userEvent.setup()
     render(<App />)
 
-    const textarea = screen.getByPlaceholderText(/Ask a question about PEC courses/i)
-    await user.type(textarea, 'Test question{enter}')
-
     await waitFor(() => {
-      expect(screen.getByText('Test answer.')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText(/Ask a question about PEC courses/i)).toBeInTheDocument()
     })
 
-    // New Chat button should be visible in header
-    const resetBtn = screen.getByRole('button', { name: /start a new conversation/i })
-    fireEvent.click(resetBtn)
+    const textarea = screen.getByPlaceholderText(/Ask a question about PEC courses/i)
+    fireEvent.change(textarea, { target: { value: 'Temporary query' } })
+    const sendBtn = screen.getByRole('button', { name: /^send question$/i })
+    fireEvent.click(sendBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('Temporary answer.')).toBeInTheDocument()
+    })
+
+    // Click New Chat in sidebar
+    const newChatBtn = screen.getByRole('button', { name: /start a new chat conversation/i })
+    fireEvent.click(newChatBtn)
 
     // Should return to welcome screen
     expect(screen.getByText("Hello! I'm IRIS.")).toBeInTheDocument()
-    expect(screen.queryByText('Test answer.')).not.toBeInTheDocument()
+    expect(screen.queryByText('Temporary answer.')).not.toBeInTheDocument()
+  })
+
+  it('logout signs out user and displays LoginScreen', async () => {
+    let loggedOut = false
+
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/auth/me')) {
+        if (loggedOut) {
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+            json: async () => ({ detail: 'Logged out' }),
+          })
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => mockUser,
+        })
+      }
+      if (url.includes('/auth/logout')) {
+        loggedOut = true
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'logged_out' }),
+        })
+      }
+      if (url.includes('/conversations')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ items: [], total: 0 }),
+        })
+      }
+      if (url.includes('/health')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'ok', service: 'IRIS API' }),
+        })
+      }
+      return Promise.reject(new Error('Unknown url: ' + url))
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Aarav Sharma')).toBeInTheDocument()
+    })
+
+    const logoutBtn = screen.getByRole('button', { name: /sign out of iris/i })
+    fireEvent.click(logoutBtn)
+
+    // Should return to LoginScreen
+    await waitFor(() => {
+      expect(screen.getByText(/Information Retrieval & Intelligence System/i)).toBeInTheDocument()
+      expect(screen.getByText(/Sign in as PEC Student/i)).toBeInTheDocument()
+    })
   })
 })

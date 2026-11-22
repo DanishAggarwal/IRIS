@@ -1,5 +1,7 @@
 """Pydantic schemas for request and response validation."""
 
+import uuid
+from datetime import datetime
 from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
@@ -20,6 +22,10 @@ class ChatRequest(BaseModel):
         le=20,
         description="Number of evidence chunks to retrieve from the document database (1 to 20).",
         examples=[5],
+    )
+    conversation_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description="Optional conversation thread ID to append the question and answer to.",
     )
 
     @field_validator("query")
@@ -106,6 +112,14 @@ class ChatResponse(BaseModel):
         description="Number of evidence chunks retrieved and considered.",
         examples=[5],
     )
+    conversation_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description="Conversation thread ID where this exchange was persisted.",
+    )
+    message_id: Optional[uuid.UUID] = Field(
+        default=None,
+        description="Persistent ID of the assistant response message.",
+    )
 
     @field_validator("status")
     @classmethod
@@ -159,3 +173,110 @@ class ErrorResponse(BaseModel):
         description="Human-readable error description.",
         examples=["Invalid request parameter."],
     )
+
+
+# ==============================================================================
+# Authentication & User Management Schemas
+# ==============================================================================
+
+
+class GoogleAuthRequest(BaseModel):
+    """Request payload containing Google OpenID Connect ID token."""
+
+    id_token: str = Field(
+        ...,
+        min_length=10,
+        description="Raw JWT identity token received from Google Identity Services.",
+    )
+
+
+class UserResponse(BaseModel):
+    """Authenticated user profile representation."""
+
+    id: uuid.UUID
+    email: str
+    name: str
+    profile_picture_url: Optional[str] = None
+    role: str  # "user" | "admin"
+
+
+class LogoutResponse(BaseModel):
+    """Response confirming session revocation."""
+
+    status: str = Field(default="logged_out", examples=["logged_out"])
+
+
+# ==============================================================================
+# Conversation History Schemas
+# ==============================================================================
+
+
+class ConversationCreateRequest(BaseModel):
+    """Request payload to start a new named conversation."""
+
+    title: Optional[str] = Field(
+        default=None,
+        max_length=150,
+        description="Optional title for the conversation. Defaults to 'New Conversation'.",
+    )
+
+
+class ConversationUpdateRequest(BaseModel):
+    """Request payload to rename an existing conversation."""
+
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=150,
+        description="New non-empty title for the conversation.",
+    )
+
+    @field_validator("title")
+    @classmethod
+    def validate_non_whitespace_title(cls, v: str) -> str:
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("Conversation title cannot be empty or only whitespace.")
+        return stripped
+
+
+class MessageResponse(BaseModel):
+    """Single question or answer message within a conversation."""
+
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    role: str  # "user" | "assistant"
+    content: str
+    status: Optional[str] = None
+    citations: Optional[list[CitationSchema]] = None
+    clarification_question: Optional[str] = None
+    handoff_recommendation: Optional[str] = None
+    created_at: datetime
+
+
+class ConversationResponse(BaseModel):
+    """Detailed conversation representation including chronological messages."""
+
+    id: uuid.UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    messages: list[MessageResponse] = Field(default_factory=list)
+
+
+class ConversationSummaryResponse(BaseModel):
+    """Summary of a conversation for list/sidebar view."""
+
+    id: uuid.UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    message_count: int = 0
+
+
+class ConversationListResponse(BaseModel):
+    """Paginated collection of conversation summaries."""
+
+    items: list[ConversationSummaryResponse] = Field(default_factory=list)
+    total: int = 0
+

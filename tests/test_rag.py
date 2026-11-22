@@ -25,7 +25,7 @@ from google.genai import errors
 from rag.citation_validator import evaluate_claim_support, validate_citations
 from rag.context_builder import build_rag_context, format_evidence_block
 from rag.evidence import assess_evidence_signal
-from rag.generator import _clean_json_response, generate_answer
+from rag.generator import GenerationQuotaError, _clean_json_response, generate_answer
 from rag.models import AnswerStatus, Citation, RAGResponse
 from rag.pipeline import answer_question
 from retrieval.result import ChunkInfo, DocumentInfo, RetrievalResult
@@ -348,6 +348,41 @@ def test_generator_retries_transient_error():
         data = generate_answer("Query", "Context", client=mock_client)
         assert data["status"] == "answered"
         assert mock_client.models.generate_content.call_count == 2
+
+
+def test_generator_falls_back_to_secondary_model_on_quota_error():
+    """Verify generator falls back from primary to secondary model when primary is rate limited (429)."""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    payload = {"status": "answered", "answer": "Fallback answered successfully", "citations": []}
+    mock_resp.text = json.dumps(payload)
+
+    quota_err = errors.ClientError(429, {"message": "Resource has been exhausted (e.g. check quota)."})
+
+    # Primary model (gemini-3.5-flash-lite) fails with 429, fallback model (gemini-3.1-flash-lite) succeeds
+    mock_client.models.generate_content.side_effect = [quota_err, mock_resp]
+
+    with patch("time.sleep"):
+        data = generate_answer("Query", "Context", client=mock_client)
+        assert data["status"] == "answered"
+        assert data["answer"] == "Fallback answered successfully"
+        assert mock_client.models.generate_content.call_count == 2
+        # First call used primary, second call used fallback
+        call_models = [c.kwargs.get("model") for c in mock_client.models.generate_content.call_args_list]
+        assert call_models[0] == "gemini-3.5-flash-lite"
+        assert call_models[1] == "gemini-3.1-flash-lite"
+
+
+def test_generator_raises_quota_error_when_all_models_exhausted():
+    """Verify GenerationQuotaError is raised when all available generation models exhaust quota."""
+    mock_client = MagicMock()
+    quota_err = errors.ClientError(429, {"message": "RESOURCE_EXHAUSTED: rate limit exceeded"})
+    mock_client.models.generate_content.side_effect = quota_err
+
+    with patch("time.sleep"):
+        with pytest.raises(GenerationQuotaError) as exc_info:
+            generate_answer("Query", "Context", client=mock_client)
+        assert "exhausted rate limit or quota" in str(exc_info.value)
 
 
 def test_safe_handoff_never_fabricates_phone_numbers_or_tickets():

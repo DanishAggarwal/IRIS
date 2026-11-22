@@ -36,8 +36,13 @@ logger = logging.getLogger(__name__)
 REPORT_PATH = Path(__file__).resolve().parent.parent / "data" / "chunk_inspection.md"
 
 
-def run_chunk_corpus() -> dict:
-    """Chunk all ingested documents and store results in document_chunks table."""
+def run_chunk_corpus(rechunk: bool = False) -> dict:
+    """Chunk all ingested documents and store results in document_chunks table.
+
+    Args:
+        rechunk: If True, re-chunks all documents even if chunks already exist.
+                 If False (default), skips documents that have already been chunked.
+    """
     logger.info("Starting corpus structure-aware chunking (version: %s)...", CHUNKING_VERSION)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -54,6 +59,23 @@ def run_chunk_corpus() -> dict:
         total_chunks = 0
 
         for doc in documents:
+            existing_count = (
+                session.query(DocumentChunk)
+                .filter(
+                    DocumentChunk.document_id == doc.id,
+                    DocumentChunk.chunking_version == CHUNKING_VERSION,
+                )
+                .count()
+            )
+            if existing_count > 0 and not rechunk:
+                logger.info(
+                    "  Skipping %s — already chunked (%d chunks).",
+                    doc.filename,
+                    existing_count,
+                )
+                total_chunks += existing_count
+                continue
+
             logger.info("Chunking document: %s (id=%s)...", doc.filename, doc.id)
 
             # Retrieve pages in ascending order
@@ -198,4 +220,14 @@ def _generate_report(doc_summaries, all_token_counts, sample_chunks, total_chunk
 
 
 if __name__ == "__main__":
-    run_chunk_corpus()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Chunk cleaned documents for IRIS.")
+    parser.add_argument(
+        "--force",
+        "-f",
+        action="store_true",
+        help="Re-chunk all documents, replacing existing chunks.",
+    )
+    args = parser.parse_args()
+    run_chunk_corpus(rechunk=args.force)

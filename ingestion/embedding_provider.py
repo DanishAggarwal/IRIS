@@ -36,6 +36,11 @@ _MAX_RETRIES = 5
 _BACKOFF_BASE_SECONDS = 2
 
 
+class EmbeddingQuotaError(RuntimeError):
+    """Raised when Gemini embedding API has exhausted rate limits or quota."""
+    pass
+
+
 def _extract_retry_delay(exc: Exception) -> Optional[float]:
     """Extract server-requested retryDelay in seconds from quota/rate-limit error if present."""
     msg = str(exc)
@@ -146,6 +151,9 @@ def _call_embed_content(
                     _MAX_RETRIES,
                     type(exc).__name__,
                 )
+                msg = str(exc).lower()
+                if "429" in msg or "resource_exhausted" in msg or "rate limit" in msg or "quota" in msg:
+                    raise EmbeddingQuotaError(f"Gemini embedding API rate limit or quota exceeded: {exc}") from exc
                 raise
 
 

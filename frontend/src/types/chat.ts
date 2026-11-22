@@ -16,6 +16,7 @@ export interface ChatMessage {
   error?: string | null
   retryQuery?: string
   retrieved_count?: number
+  conversation_id?: string | null
   timestamp: number
 }
 

@@ -14,10 +14,11 @@ from google import genai
 from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal
+from ingestion.embedding_provider import EmbeddingQuotaError
 from rag.citation_validator import validate_citations
 from rag.context_builder import DEFAULT_MAX_CONTEXT_TOKENS, build_rag_context
 from rag.evidence import assess_evidence_signal
-from rag.generator import generate_answer
+from rag.generator import GenerationQuotaError, generate_answer
 from rag.models import AnswerStatus, RAGResponse
 from retrieval.retriever import retrieve_relevant_chunks
 
@@ -103,6 +104,9 @@ def answer_question(
             client=client,
             document_id=document_id,
         )
+    except (GenerationQuotaError, EmbeddingQuotaError):
+        # Re-raise quota exhaustion so API and callers can present service capacity status with retry
+        raise
     except Exception as exc:
         logger.error(f"Retrieval failure for query '{clean_query}': {exc}", exc_info=True)
         return RAGResponse(
@@ -141,6 +145,9 @@ def answer_question(
             retrieval_results=retrieval_results,
             max_tokens=max_context_tokens,
         )
+    except (GenerationQuotaError, EmbeddingQuotaError):
+        # Re-raise quota exhaustion so API and callers can present service capacity status with retry
+        raise
     except Exception as exc:
         logger.error(f"Context construction failure: {exc}", exc_info=True)
         return RAGResponse(
@@ -161,6 +168,9 @@ def answer_question(
             client=client,
             model=generation_model,
         )
+    except (GenerationQuotaError, EmbeddingQuotaError):
+        # Re-raise quota exhaustion so API and callers can present service capacity status with retry
+        raise
     except Exception as exc:
         logger.error(f"Gemini answer generation failure: {exc}", exc_info=True)
         return RAGResponse(

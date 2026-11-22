@@ -1,7 +1,7 @@
 # IRIS — Current Status
 
-**Current stage:** Milestone 10 Complete  
-**Current focus:** Evaluation, hardening, and next milestone planning.
+**Current stage:** Milestone 11 Complete — Checkpoint Saved
+**Current focus:** Enhancing RAG generator for temporal recency precedence and student-friendly advisor tone.
 
 ## Completed
 - [x] Project purpose and initial scope agreed.
@@ -12,6 +12,17 @@
 - [x] Multi-agent orchestration, authentication, persistent chat history, Drive integration and cloud deployment deferred.
 - [x] Prototype data policy set to public/student-wide documents manually selected by the user.
 - [x] Anchor documentation prepared.
+- [x] **Milestone 0–10 Completed.** (See Git history).
+- [x] **Milestone 11 Completed:**
+  - Google OAuth 2.0 / OpenID Connect authentication with domain restrictions (`@pec.edu.in`) and personal admin allowlist.
+  - HTTP-only signed session cookies with 7-day expiration.
+  - User and Conversation History models and Alembic migration `0005_add_auth_and_conversations.py`.
+  - Conversation management API endpoints (list, get, create, rename, delete).
+  - React frontend authentication flow (Google Sign-In, error alerts, login screen).
+  - React sidebar component with conversation history, rename, delete, and real user badge.
+  - Model fallback chain (`gemini-3.5-flash-lite` -> `gemini-3.1-flash-lite`) and 503 capacity limit error card in chat.
+  - Single-command unified ingestion runner: `scripts/ingest.py`.
+  - All 141 backend tests and 50 frontend tests passing.
 - [x] **Milestone 0 Completed:**
   - Initialized Git repository; verified `.gitignore` excludes `documents/`, `data/`, `.env`, and virtual environments.
   - Created Python virtual environment (`.venv`) using Windows Python 3.14.7.
@@ -106,9 +117,27 @@
   - Real-time connection status badge (Connected, Disconnected, Checking).
   - Vitest + React Testing Library test suite in `frontend/src/test/`: **36/36 passed**.
   - Production build verified with `npm run build` (0 TypeScript / bundling errors).
+- [x] **Milestone 11 Completed (Security Hardened & Ready for Merge Review):**
+  - Added official Google Identity Services OAuth 2.0 with backend token verification (`google-auth`).
+  - Configured institutional email domain allowlist (`ALLOWED_EMAIL_DOMAINS`, e.g. `pec.edu.in`) and personal administrator allowlist (`ADMIN_EMAILS`).
+  - Implemented server-side opaque session token stored in `HttpOnly` cookie (`iris_session`) with SHA-256 token hashing in PostgreSQL.
+  - Applied Alembic migration `0005_add_auth_and_conversations.py` creating `users`, `sessions`, `conversations`, and `messages` tables with cascading foreign keys and indexes. Added destructive downgrade safety docstring.
+  - Verified corpus preservation: 3 documents, 276 pages, 257 chunks, and 257 768-dim embeddings remain 100% intact.
+  - Implemented authenticated conversation CRUD endpoints (`/conversations`) with strict user ownership isolation.
+  - Updated `POST /chat` with session authentication, CSRF origin verification, and automatic persistence of user questions, assistant answers, and verified citations.
+  - **Security Fix Pass Applied:**
+    - Critical C1: Mock authentication buttons guarded by `import.meta.env.DEV && !googleClientId`; verified completely eliminated in production bundles.
+    - Critical C2: Default `APP_ENV` changed to `"production"` (fail-closed); mock tokens strictly rejected in non-development; mandatory `GOOGLE_CLIENT_ID` audience verification in development and production with safe error messages.
+    - Critical C3: Local development standardized to `http://localhost:8000` and `http://localhost:5173` to ensure same-site cookie delivery with `SameSite=Lax`.
+    - Important I1: Dynamic live `ADMIN_EMAILS` check in `require_admin` and automatic role synchronization/de-escalation in `get_current_user`.
+    - Important I2: Verified Google email updates on `sub` match with cross-account collision prevention (409).
+    - Additional: CSRF `Origin` validation on all state-changing cookie requests.
+  - Full test verification: Backend pytest suite **138/138 passed** (100%); Frontend Vitest suite **44/44 passed** (100%).
+  - End-to-end browser integration verification via Browser Agent: 12/12 steps verified (login, reload session persistence, Q&A synthesis, citations, thread sidebar, thread selection, and logout).
+  - Frontend production build verified (`npm run build` clean in 1.12s).
 
 ## Current milestone
-**M10 Completed — Merged into main**
+**M11 Completed (Hardened) — Ready for Commit & Merge Approval**
 
 ## Corpus Chunk Summary in Database
 | Document | Pages | Total Chunks | Avg Tokens | Multi-Page Chunks | Table Chunks | Embeddings |

@@ -19,9 +19,16 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_GENERATION_MODEL = "gemini-3.5-flash-lite"
-_MAX_RETRIES = 5
+DEFAULT_GENERATION_MODEL_PRIMARY = "gemini-3.5-flash-lite"
+DEFAULT_GENERATION_MODEL_FALLBACK = "gemini-3.1-flash-lite"
+DEFAULT_GENERATION_MODEL = DEFAULT_GENERATION_MODEL_PRIMARY
+_MAX_RETRIES = 3
 _BACKOFF_BASE_SECONDS = 2.0
+
+
+class GenerationQuotaError(RuntimeError):
+    """Raised when all available Gemini generation models have exhausted their rate limits or quota."""
+    pass
 
 
 def _extract_retry_delay(exc: Exception) -> Optional[float]:
@@ -43,8 +50,26 @@ def _extract_retry_delay(exc: Exception) -> Optional[float]:
 
 
 def get_generation_config() -> str:
-    """Return configured Gemini generation model name."""
-    return os.getenv("GEMINI_GENERATION_MODEL", DEFAULT_GENERATION_MODEL).strip()
+    """Return configured primary Gemini generation model name."""
+    return os.getenv(
+        "GEMINI_GENERATION_MODEL_PRIMARY",
+        os.getenv("GEMINI_GENERATION_MODEL", DEFAULT_GENERATION_MODEL_PRIMARY),
+    ).strip()
+
+
+def get_generation_models() -> list[str]:
+    """Return ordered list of models for generation with fallback support.
+
+    Primary model is tried first. If rate limited (429) or quota exhausted,
+    the pipeline falls back to the configured fallback model.
+    """
+    primary = get_generation_config()
+    fallback = os.getenv("GEMINI_GENERATION_MODEL_FALLBACK", DEFAULT_GENERATION_MODEL_FALLBACK).strip()
+
+    models = [primary]
+    if fallback and fallback != primary:
+        models.append(fallback)
+    return models
 
 
 def _get_client() -> genai.Client:
@@ -163,7 +188,7 @@ def generate_answer(
     if client is None:
         client = _get_client()
 
-    model_name = model or get_generation_config()
+    models = [model] if model else get_generation_models()
 
     user_prompt = (
         f"USER QUESTION: {query.strip()}\n\n"
@@ -173,60 +198,106 @@ def generate_answer(
     )
 
     last_error: Optional[Exception] = None
+    last_was_quota = False
 
-    for attempt in range(1, _MAX_RETRIES + 1):
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=user_prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    response_mime_type="application/json",
-                    temperature=0.0,
-                    max_output_tokens=1500,
-                ),
-            )
+    for model_idx, model_name in enumerate(models):
+        has_next_model = (model_idx < len(models) - 1)
+        next_model_name = models[model_idx + 1] if has_next_model else None
 
-            if not response.text:
-                raise ValueError("Gemini returned an empty text response.")
-
-            cleaned = _clean_json_response(response.text)
-            parsed = json.loads(cleaned)
-
-            # Validate required schema keys
-            required_keys = {"status", "answer", "citations"}
-            if not required_keys.issubset(parsed.keys()):
-                raise ValueError(f"Model response missing required keys: {required_keys - set(parsed.keys())}")
-
-            return parsed
-
-        except (errors.ServerError, errors.ClientError) as exc:
-            last_error = exc
-            is_transient = "429" in str(exc) or "503" in str(exc) or "resource_exhausted" in str(exc).lower()
-            if is_transient and attempt < _MAX_RETRIES:
-                server_delay = _extract_retry_delay(exc)
-                if server_delay is not None:
-                    sleep_sec = server_delay + 2.0
-                else:
-                    sleep_sec = _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1))
-
-                logger.warning(
-                    "Transient error on generation attempt %d/%d (%s). Backing off for %.1fs (server hint: %s)...",
-                    attempt,
-                    _MAX_RETRIES,
-                    type(exc).__name__,
-                    sleep_sec,
-                    server_delay,
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_INSTRUCTION,
+                        response_mime_type="application/json",
+                        temperature=0.0,
+                        max_output_tokens=1500,
+                    ),
                 )
-                time.sleep(sleep_sec)
-            else:
-                logger.error("Generation API call failed on attempt %d/%d: %s", attempt, _MAX_RETRIES, exc)
-                raise RuntimeError(f"Gemini generation API call failed: {exc}") from exc
 
-        except json.JSONDecodeError as exc:
-            last_error = exc
-            logger.warning("Failed to decode JSON from Gemini on attempt %d/%d: %s", attempt, _MAX_RETRIES, exc)
-            if attempt == _MAX_RETRIES:
-                raise RuntimeError(f"Gemini returned invalid non-JSON output: {exc}") from exc
+                if not response.text:
+                    raise ValueError("Gemini returned an empty text response.")
 
-    raise RuntimeError(f"Gemini answer generation failed after {_MAX_RETRIES} attempts: {last_error}")
+                cleaned = _clean_json_response(response.text)
+                parsed = json.loads(cleaned)
+
+                # Validate required schema keys
+                required_keys = {"status", "answer", "citations"}
+                if not required_keys.issubset(parsed.keys()):
+                    raise ValueError(f"Model response missing required keys: {required_keys - set(parsed.keys())}")
+
+                if model_idx > 0:
+                    logger.info("Successfully generated answer using fallback model '%s'", model_name)
+
+                return parsed
+
+            except (errors.ServerError, errors.ClientError) as exc:
+                last_error = exc
+                is_quota = "429" in str(exc) or "resource_exhausted" in str(exc).lower() or "quota" in str(exc).lower()
+                is_transient = is_quota or "503" in str(exc) or isinstance(exc, errors.ServerError)
+                last_was_quota = is_quota
+
+                if is_quota:
+                    if has_next_model:
+                        logger.warning(
+                            "Generation model '%s' hit rate limit / quota. Falling back to '%s'...",
+                            model_name,
+                            next_model_name,
+                        )
+                        break  # Fall back to next model immediately
+
+                    if attempt < _MAX_RETRIES:
+                        server_delay = _extract_retry_delay(exc)
+                        sleep_sec = (server_delay + 2.0) if server_delay is not None else (_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)))
+                        logger.warning(
+                            "Transient quota error on model '%s' attempt %d/%d (%s). Backing off for %.1fs (server hint: %s)...",
+                            model_name,
+                            attempt,
+                            _MAX_RETRIES,
+                            type(exc).__name__,
+                            sleep_sec,
+                            server_delay,
+                        )
+                        time.sleep(sleep_sec)
+                    else:
+                        logger.error("All retries on final generation model '%s' exhausted: %s", model_name, exc)
+                        raise GenerationQuotaError(f"All available generation models exhausted rate limit or quota: {exc}") from exc
+
+                elif is_transient and attempt < _MAX_RETRIES:
+                    server_delay = _extract_retry_delay(exc)
+                    sleep_sec = (server_delay + 2.0) if server_delay is not None else (_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)))
+                    logger.warning(
+                        "Transient error on generation model '%s' attempt %d/%d (%s). Backing off for %.1fs...",
+                        model_name,
+                        attempt,
+                        _MAX_RETRIES,
+                        type(exc).__name__,
+                        sleep_sec,
+                    )
+                    time.sleep(sleep_sec)
+                else:
+                    if has_next_model:
+                        logger.warning(
+                            "Generation model '%s' failed with error (%s). Falling back to '%s'...",
+                            model_name,
+                            exc,
+                            next_model_name,
+                        )
+                        break
+                    logger.error("Generation API call failed on attempt %d/%d: %s", attempt, _MAX_RETRIES, exc)
+                    raise RuntimeError(f"Gemini generation API call failed: {exc}") from exc
+
+            except json.JSONDecodeError as exc:
+                last_error = exc
+                logger.warning("Failed to decode JSON from model '%s' on attempt %d/%d: %s", model_name, attempt, _MAX_RETRIES, exc)
+                if attempt == _MAX_RETRIES:
+                    if has_next_model:
+                        logger.warning("Falling back to '%s' after JSON decode errors on '%s'...", next_model_name, model_name)
+                        break
+                    raise RuntimeError(f"Gemini returned invalid non-JSON output: {exc}") from exc
+
+    if last_was_quota:
+        raise GenerationQuotaError(f"All available generation models exhausted rate limit or quota: {last_error}") from last_error
+    raise RuntimeError(f"Gemini answer generation failed after trying models: {last_error}")

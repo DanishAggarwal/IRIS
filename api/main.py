@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import get_api_settings
 from api.exceptions import setup_exception_handlers
-from api.routes import chat, health
+from api.routes import auth, chat, conversations, health
 
 # Configure application logging
 logging.basicConfig(
@@ -53,7 +53,7 @@ def create_application() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", "Accept"],
     )
 
@@ -62,6 +62,8 @@ def create_application() -> FastAPI:
 
     # Register route modules
     app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(conversations.router)
     app.include_router(chat.router)
 
     return app

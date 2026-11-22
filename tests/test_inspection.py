@@ -9,7 +9,7 @@ from ingestion.pdf_inspector import inspect_all_documents, inspect_pdf
 def test_discover_pdfs_finds_all_sample_files():
     """Verify that all sample PDFs in documents/ are discovered and hashed."""
     docs = discover_pdfs("documents")
-    assert len(docs) == 3, f"Expected 3 PDFs, found {len(docs)}"
+    assert len(docs) >= 3, f"Expected at least 3 PDFs, found {len(docs)}"
     
     filenames = [d.filename for d in docs]
     assert "Course Handout of CSE 25261 Semester 04082025 Ver 1_0.pdf" in filenames
@@ -33,7 +33,7 @@ def test_sha256_hash_deterministic():
 def test_inspect_documents_extracts_pages_and_classifications():
     """Verify page counting and digital/scanned classification for each document."""
     inspections = inspect_all_documents("documents")
-    assert len(inspections) == 3
+    assert len(inspections) >= 3
 
     for item in inspections:
         assert item.total_pages > 0

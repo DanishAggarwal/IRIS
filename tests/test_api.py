@@ -6,8 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.config import APISettings, get_api_settings
-from api.dependencies import get_database_session
+from api.dependencies import get_current_user, get_database_session
 from api.main import create_application
+from database.models import User
 from rag.models import AnswerStatus, Citation, RAGResponse
 
 
@@ -19,10 +20,24 @@ def mock_db_session():
 
 
 @pytest.fixture
-def client(mock_db_session):
-    """Fixture providing a FastAPI TestClient with mocked database session dependency."""
+def mock_user():
+    """Fixture providing a mock authenticated user."""
+    return User(
+        id=uuid.uuid4(),
+        google_sub="test_google_sub_123",
+        email="student@pec.edu.in",
+        name="Test Student",
+        role="user",
+        is_active=True,
+    )
+
+
+@pytest.fixture
+def client(mock_db_session, mock_user):
+    """Fixture providing a FastAPI TestClient with mocked dependencies."""
     app = create_application()
     app.dependency_overrides[get_database_session] = lambda: mock_db_session
+    app.dependency_overrides[get_current_user] = lambda: mock_user
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
@@ -42,6 +57,10 @@ def test_application_startup_and_routes(client):
     assert "/health" in schema["paths"]
     assert "/health/ready" in schema["paths"]
     assert "/chat" in schema["paths"]
+    assert "/auth/google" in schema["paths"]
+    assert "/auth/me" in schema["paths"]
+    assert "/auth/logout" in schema["paths"]
+    assert "/conversations" in schema["paths"]
 
     resp_docs = client.get("/docs")
     assert resp_docs.status_code == 200
@@ -269,6 +288,18 @@ def test_chat_unexpected_exception_returns_safe_500(client):
         assert data["detail"] == "An internal server error occurred while processing the request."
         # Verify secret internal error string is NOT leaked
         assert "Secret database error" not in resp.text
+
+
+def test_chat_quota_exhaustion_returns_friendly_503(client):
+    """Verify AI provider quota exhaustion returns 503 with user-friendly retry message."""
+    from rag.generator import GenerationQuotaError
+
+    with patch("api.routes.chat.answer_question", side_effect=GenerationQuotaError("Quota exhausted")):
+        resp = client.post("/chat", json={"query": "What are the course outcomes?"})
+        assert resp.status_code == 503
+        data = resp.json()
+        assert "experiencing high demand" in data["detail"]
+        assert "Retry question" in data["detail"]
 
 
 # ---------------------------------------------------------------------------
