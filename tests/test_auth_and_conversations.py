@@ -759,13 +759,16 @@ def test_active_session_admin_revocation(client, test_db):
         assert resp.json()["role"] == "admin"
 
     # Now simulate removing temp_admin@gmail.com from ADMIN_EMAILS
-    with patch.dict("os.environ", {"ADMIN_EMAILS": ""}):
-        api.config._settings_instance = None
+    try:
+        with patch.dict("os.environ", {"ADMIN_EMAILS": ""}):
+            api.config._settings_instance = None
 
-        # Personal Gmail is no longer eligible under ALLOWED_EMAIL_DOMAINS (pec.edu.in)
-        resp_after = client.get("/auth/me")
-        assert resp_after.status_code == 403
-        assert "no longer authorized" in resp_after.json()["detail"].lower()
+            # Personal Gmail is no longer eligible under ALLOWED_EMAIL_DOMAINS (pec.edu.in)
+            resp_after = client.get("/auth/me")
+            assert resp_after.status_code == 403
+            assert "no longer authorized" in resp_after.json()["detail"].lower()
+    finally:
+        api.config._settings_instance = None
 
 
 def test_active_session_institutional_role_downgrade(client, test_db):
@@ -785,18 +788,21 @@ def test_active_session_institutional_role_downgrade(client, test_db):
     client.cookies.set("iris_session", token)
 
     # Simulate removing from ADMIN_EMAILS
-    with patch.dict("os.environ", {"ADMIN_EMAILS": ""}):
-        import api.config
+    try:
+        with patch.dict("os.environ", {"ADMIN_EMAILS": ""}):
+            import api.config
+            api.config._settings_instance = None
+
+            # Still eligible as institutional user, but downgraded from admin to user
+            resp = client.get("/auth/me")
+            assert resp.status_code == 200
+            assert resp.json()["role"] == "user"
+
+            # Verify DB row was also updated
+            test_db.refresh(inst_admin)
+            assert inst_admin.role == "user"
+    finally:
         api.config._settings_instance = None
-
-        # Still eligible as institutional user, but downgraded from admin to user
-        resp = client.get("/auth/me")
-        assert resp.status_code == 200
-        assert resp.json()["role"] == "user"
-
-        # Verify DB row was also updated
-        test_db.refresh(inst_admin)
-        assert inst_admin.role == "user"
 
 
 def test_csrf_origin_check_blocks_malicious_origin(client, test_db):

@@ -61,6 +61,7 @@ def test_application_startup_and_routes(client):
     assert "/auth/me" in schema["paths"]
     assert "/auth/logout" in schema["paths"]
     assert "/conversations" in schema["paths"]
+    assert "/admin/crawler/documents" in schema["paths"]
 
     resp_docs = client.get("/docs")
     assert resp_docs.status_code == 200

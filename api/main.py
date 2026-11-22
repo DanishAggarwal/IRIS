@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.config import get_api_settings
 from api.exceptions import setup_exception_handlers
-from api.routes import auth, chat, conversations, health
+from api.routes import auth, chat, conversations, crawler, health
 
 # Configure application logging
 logging.basicConfig(
@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Initializing IRIS API service...")
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Allowed CORS Origins: {settings.allowed_origins}")
+
     yield
     logger.info("Shutting down IRIS API service.")
 
@@ -65,6 +66,7 @@ def create_application() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(conversations.router)
     app.include_router(chat.router)
+    app.include_router(crawler.router)
 
     return app
 

@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 from typing import Any, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ChatRequest(BaseModel):
@@ -279,4 +279,124 @@ class ConversationListResponse(BaseModel):
 
     items: list[ConversationSummaryResponse] = Field(default_factory=list)
     total: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Crawler & Document Acquisition Schemas (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+class CrawlerSourceSchema(BaseModel):
+    """Configured institutional source webpage."""
+
+    id: uuid.UUID
+    source_id: str
+    name: str
+    url: str
+    category: str
+    strategy: str
+    enabled: bool
+    config: Optional[dict[str, Any]] = None
+    last_scanned_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CrawlerSourceUpdateSchema(BaseModel):
+    """Optional update fields for a crawler source."""
+
+    enabled: Optional[bool] = None
+    name: Optional[str] = None
+    category: Optional[str] = None
+    config: Optional[dict[str, Any]] = None
+
+
+class DiscoveredDocumentSchema(BaseModel):
+    """Discovered document catalogue item with change detection and approval state."""
+
+    id: uuid.UUID
+    source_id: str
+    title: str
+    source_page_url: str
+    download_url: str
+    category: str
+    file_type: str
+    publication_date: Optional[str] = None
+    meeting_number: Optional[str] = None
+    academic_year: Optional[str] = None
+    status: str  # discovered | pending_approval | approved | rejected | ingesting | ingested | potentially_changed
+    change_status: str  # unknown | unchanged | potentially_changed
+    http_etag: Optional[str] = None
+    http_last_modified: Optional[str] = None
+    http_content_length: Optional[int] = None
+    last_checked_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    first_discovered_at: datetime
+    last_discovered_at: datetime
+    last_scanned_at: datetime
+    metadata: Optional[dict[str, Any]] = Field(default=None, alias="metadata_")
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+
+class DiscoveredDocumentListResponse(BaseModel):
+    """Paginated list of discovered documents with catalogue stats."""
+
+    items: list[DiscoveredDocumentSchema]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    stats: dict[str, int]
+
+
+class DocumentRejectionRequest(BaseModel):
+    """Payload for rejecting a candidate document."""
+
+    reason: Optional[str] = Field(default=None, max_length=500, description="Optional rejection reason")
+
+
+class DocumentAuditSchema(BaseModel):
+    """Immutable audit trail record for approval/rejection decision."""
+
+    id: uuid.UUID
+    document_id: uuid.UUID
+    admin_email: str
+    action: str
+    previous_status: str
+    new_status: str
+    reason: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CrawlerScanTriggerRequest(BaseModel):
+    """Optional payload to restrict scan to a single source."""
+
+    source_id: Optional[str] = Field(default=None, description="Optional source_id slug to scan")
+
+
+class CrawlerScanResponse(BaseModel):
+    """Crawler scan execution progress and outcome record."""
+
+    id: uuid.UUID
+    source_id: Optional[str] = None
+    status: str  # running | completed | failed
+    total_sources: int
+    total_discovered: int
+    new_documents: int
+    updated_documents: int
+    potentially_changed: int
+    error_message: Optional[str] = None
+    initiated_by: str
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 

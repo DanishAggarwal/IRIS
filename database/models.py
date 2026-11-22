@@ -363,9 +363,23 @@ class DiscoveredDocument(Base):
     meeting_number: Mapped[str | None] = mapped_column(Text, nullable=True)
     academic_year: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+    # discovered | pending_approval | approved | rejected | ingesting | ingested | failed | potentially_changed
     status: Mapped[str] = mapped_column(Text, index=True, nullable=False, default="discovered")
     sha256: Mapped[str | None] = mapped_column(Text, index=True, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # HTTP Change Detection Signals
+    http_etag: Mapped[str | None] = mapped_column(Text, nullable=True)
+    http_last_modified: Mapped[str | None] = mapped_column(Text, nullable=True)
+    http_content_length: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # unknown | unchanged | potentially_changed
+    change_status: Mapped[str] = mapped_column(Text, index=True, nullable=False, default="unknown")
+
+    # Admin Approval Metadata
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     first_discovered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -389,6 +403,80 @@ class DiscoveredDocument(Base):
     source: Mapped["CrawlerSource"] = relationship(
         "CrawlerSource", back_populates="discovered_documents"
     )
+    audits: Mapped[list["DocumentApprovalAudit"]] = relationship(
+        "DocumentApprovalAudit",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentApprovalAudit.created_at.desc()",
+    )
 
     def __repr__(self) -> str:
         return f"<DiscoveredDocument id={self.id} title={self.title!r} status={self.status!r}>"
+
+
+class CrawlerScan(Base):
+    """Tracks asynchronous or on-demand crawler discovery scan executions."""
+
+    __tablename__ = "crawler_scans"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    source_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # running | completed | failed
+    status: Mapped[str] = mapped_column(Text, index=True, nullable=False, default="running")
+    total_sources: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_discovered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    new_documents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_documents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    potentially_changed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    initiated_by: Mapped[str] = mapped_column(Text, nullable=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    def __repr__(self) -> str:
+        return f"<CrawlerScan id={self.id} status={self.status!r} by={self.initiated_by!r}>"
+
+
+class DocumentApprovalAudit(Base):
+    """Append-only audit record of administrative approval, rejection, or reconsideration."""
+
+    __tablename__ = "document_approval_audits"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("discovered_documents.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    admin_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    admin_email: Mapped[str] = mapped_column(Text, index=True, nullable=False)
+    action: Mapped[str] = mapped_column(Text, nullable=False)  # "approve" | "reject" | "reconsider"
+    previous_status: Mapped[str] = mapped_column(Text, nullable=False)
+    new_status: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    document: Mapped["DiscoveredDocument"] = relationship(
+        "DiscoveredDocument", back_populates="audits"
+    )
+
+    def __repr__(self) -> str:
+        return f"<DocumentApprovalAudit id={self.id} doc={self.document_id} action={self.action!r}>"
+
+
+

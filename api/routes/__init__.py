@@ -1,6 +1,6 @@
 """API routes package."""
 
-from api.routes import auth, chat, conversations, health
+from api.routes import auth, chat, conversations, crawler, health
 
-__all__ = ["auth", "chat", "conversations", "health"]
+__all__ = ["auth", "chat", "conversations", "crawler", "health"]
 
