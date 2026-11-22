@@ -27,15 +27,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Allowed CORS Origins: {settings.allowed_origins}")
 
-    # Recover stale/interrupted scans left in 'running' status from a previous process
+    # Recover stale/interrupted scans and acquisitions left from a previous process
     try:
         from database.connection import SessionLocal
+        from crawler.acquisition import recover_stale_ingestions_on_startup
         from crawler.catalog import recover_stale_scans_on_startup
 
         with SessionLocal() as db:
-            recovered = recover_stale_scans_on_startup(db)
-            if recovered > 0:
-                logger.warning("Recovered %d interrupted crawler scans on startup.", recovered)
+            recovered_scans = recover_stale_scans_on_startup(db)
+            if recovered_scans > 0:
+                logger.warning("Recovered %d interrupted crawler scans on startup.", recovered_scans)
+
+            recovered_ingestions = recover_stale_ingestions_on_startup(db)
+            if recovered_ingestions > 0:
+                logger.warning("Recovered %d interrupted document acquisitions on startup.", recovered_ingestions)
     except Exception as exc:
         logger.error("Failed to run crawler startup recovery: %s", exc)
 

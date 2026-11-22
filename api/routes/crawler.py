@@ -7,6 +7,7 @@ from typing import Optional
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_database_session, require_admin
@@ -18,8 +19,11 @@ from api.schemas import (
     DiscoveredDocumentListResponse,
     DiscoveredDocumentSchema,
     DocumentAuditSchema,
+    DocumentIngestionStatusResponse,
     DocumentRejectionRequest,
 )
+from crawler.acquisition import acquire_and_ingest_document
+from database.models import DiscoveredDocument
 from crawler.catalog import (
     approve_document,
     complete_scan_execution,
@@ -471,3 +475,131 @@ def get_approval_history(
             detail="Discovered document not found.",
         )
     return get_document_approval_history(db, document_id)
+
+
+# ---------------------------------------------------------------------------
+# 5. Approved Document Ingestion & Acquisition (Phase 3)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/documents/{document_id}/ingest",
+    response_model=DiscoveredDocumentSchema,
+    summary="Initiate download and ingestion of an approved document",
+)
+def ingest_document_endpoint(
+    document_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_database_session),
+    admin_user: User = Depends(require_admin),
+) -> DiscoveredDocumentSchema:
+    """Download approved PDF, validate integrity, and trigger the IRIS ingestion pipeline."""
+    # Row-level lock to prevent concurrent initiation on the same record
+    doc = db.scalar(
+        select(DiscoveredDocument)
+        .where(DiscoveredDocument.id == document_id)
+        .with_for_update()
+    )
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Discovered document with ID '{document_id}' not found.",
+        )
+    if doc.status == "ingested":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Document '{doc.title}' is already ingested.",
+        )
+    if doc.status == "rejected":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Document '{doc.title}' is rejected and cannot be ingested. "
+                "Only approved documents (or failed retries) can be ingested."
+            ),
+        )
+    if doc.status in ("downloading", "ingesting"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Acquisition for document '{doc.title}' is already in progress (status: {doc.status}).",
+        )
+    if doc.status not in ("approved", "download_failed", "ingest_failed"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Document '{doc.title}' cannot be ingested because its status is '{doc.status}'. "
+                "Only approved documents (or failed retries) can be ingested."
+            ),
+        )
+
+    # Launch acquisition & ingestion in background task (synchronous under TestClient)
+    background_tasks.add_task(acquire_and_ingest_document, document_id, admin_user)
+
+    doc.status = "downloading"
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+@router.post(
+    "/documents/{document_id}/retry",
+    response_model=DiscoveredDocumentSchema,
+    summary="Retry failed download or ingestion",
+)
+def retry_document_endpoint(
+    document_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_database_session),
+    admin_user: User = Depends(require_admin),
+) -> DiscoveredDocumentSchema:
+    """Retry a failed document download or ingestion operation."""
+    # Row-level lock to prevent concurrent retry requests on the same record
+    doc = db.scalar(
+        select(DiscoveredDocument)
+        .where(DiscoveredDocument.id == document_id)
+        .with_for_update()
+    )
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Discovered document with ID '{document_id}' not found.",
+        )
+    if doc.status in ("downloading", "ingesting"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Acquisition for document '{doc.title}' is already in progress (status: {doc.status}).",
+        )
+    if doc.status not in ("download_failed", "ingest_failed"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Document with status '{doc.status}' is not in a failed state and cannot be retried.",
+        )
+
+    background_tasks.add_task(acquire_and_ingest_document, document_id, admin_user)
+
+    doc.status = "downloading"
+    doc.error_message = None
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+
+@router.get(
+    "/documents/{document_id}/ingestion-status",
+    response_model=DocumentIngestionStatusResponse,
+    summary="Get document acquisition and ingestion status",
+)
+def get_document_ingestion_status(
+    document_id: uuid.UUID,
+    db: Session = Depends(get_database_session),
+    admin_user: User = Depends(require_admin),
+) -> DocumentIngestionStatusResponse:
+    """Inspect real-time download and ingestion status and error diagnostics."""
+    doc = get_discovered_document_by_id(db, document_id)
+    if not doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Discovered document with ID '{document_id}' not found.",
+        )
+    return doc
+

@@ -383,6 +383,17 @@ class DiscoveredDocument(Base):
     approved_by: Mapped[str | None] = mapped_column(Text, nullable=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Document Ingestion Provenance (Phase 3)
+    local_filename: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ingested_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    downloaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ingested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     first_discovered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -405,6 +416,7 @@ class DiscoveredDocument(Base):
     source: Mapped["CrawlerSource"] = relationship(
         "CrawlerSource", back_populates="discovered_documents"
     )
+    ingested_document: Mapped["Document | None"] = relationship("Document")
     audits: Mapped[list["DocumentApprovalAudit"]] = relationship(
         "DocumentApprovalAudit",
         back_populates="document",

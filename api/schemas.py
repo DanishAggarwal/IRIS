@@ -335,6 +335,12 @@ class DiscoveredDocumentSchema(BaseModel):
     rejection_reason: Optional[str] = None
     approved_by: Optional[str] = None
     approved_at: Optional[datetime] = None
+    local_filename: Optional[str] = None
+    ingested_document_id: Optional[uuid.UUID] = None
+    downloaded_at: Optional[datetime] = None
+    ingested_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+    sha256: Optional[str] = None
     first_discovered_at: datetime
     last_discovered_at: datetime
     last_scanned_at: datetime
@@ -398,5 +404,24 @@ class CrawlerScanResponse(BaseModel):
     completed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentIngestionStatusResponse(BaseModel):
+    """Detailed acquisition and ingestion status for a discovered document."""
+
+    id: uuid.UUID
+    title: str
+    download_url: str
+    status: str
+    change_status: str
+    sha256: Optional[str] = None
+    local_filename: Optional[str] = None
+    ingested_document_id: Optional[uuid.UUID] = None
+    downloaded_at: Optional[datetime] = None
+    ingested_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 
