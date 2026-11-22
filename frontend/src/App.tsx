@@ -70,7 +70,7 @@ export const App: React.FC = () => {
         onLogout={logout}
       />
 
-      <div className="iris-app-body">
+      <div className={`iris-app-body ${currentView === 'crawler' ? 'iris-app-body-crawler' : ''}`}>
         {currentView === 'crawler' ? (
           <CrawlerAdminContainer
             user={user}

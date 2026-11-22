@@ -445,6 +445,16 @@ export const CrawlerAdminContainer: React.FC<CrawlerAdminContainerProps> = ({
         stats={stats}
         latestScan={latestScan}
         isScanning={isScanning}
+        activeStatusFilter={selectedStatus}
+        activeChangeFilter={selectedChangeStatus}
+        onSelectStatus={(st) => {
+          setSelectedStatus(st)
+          setCurrentPage(1)
+        }}
+        onSelectChangeStatus={(cs) => {
+          setSelectedChangeStatus(cs)
+          setCurrentPage(1)
+        }}
       />
 
       {/* Scan Progress / Results Banner */}

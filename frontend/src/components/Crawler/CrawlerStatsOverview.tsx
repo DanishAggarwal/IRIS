@@ -14,12 +14,20 @@ interface CrawlerStatsOverviewProps {
   stats: Record<string, number>
   latestScan: CrawlerScan | null
   isScanning: boolean
+  activeStatusFilter?: string
+  activeChangeFilter?: string
+  onSelectStatus?: (status: string) => void
+  onSelectChangeStatus?: (changeStatus: string) => void
 }
 
 export const CrawlerStatsOverview: React.FC<CrawlerStatsOverviewProps> = ({
   stats,
   latestScan,
   isScanning,
+  activeStatusFilter = '',
+  activeChangeFilter = '',
+  onSelectStatus,
+  onSelectChangeStatus,
 }) => {
   const total = stats.total || 0
   const approved = stats.approved || 0
@@ -27,9 +35,36 @@ export const CrawlerStatsOverview: React.FC<CrawlerStatsOverviewProps> = ({
   const potentiallyChanged = stats.potentially_changed || 0
   const failed = (stats.download_failed || 0) + (stats.ingest_failed || 0)
 
+  const handleCardClick = (type: 'total' | 'approved' | 'ingested' | 'changed' | 'failed') => {
+    if (!onSelectStatus || !onSelectChangeStatus) return
+
+    if (type === 'total') {
+      onSelectStatus('')
+      onSelectChangeStatus('')
+    } else if (type === 'approved') {
+      onSelectChangeStatus('')
+      onSelectStatus(activeStatusFilter === 'approved' ? '' : 'approved')
+    } else if (type === 'ingested') {
+      onSelectChangeStatus('')
+      onSelectStatus(activeStatusFilter === 'ingested' ? '' : 'ingested')
+    } else if (type === 'changed') {
+      onSelectStatus('')
+      onSelectChangeStatus(activeChangeFilter === 'potentially_changed' ? '' : 'potentially_changed')
+    } else if (type === 'failed') {
+      onSelectChangeStatus('')
+      onSelectStatus(activeStatusFilter === 'download_failed' || activeStatusFilter === 'ingest_failed' ? '' : 'download_failed')
+    }
+  }
+
   return (
     <div className="iris-crawler-stats-grid">
-      <div className="iris-crawler-stat-card">
+      <div
+        className={`iris-crawler-stat-card ${onSelectStatus ? 'iris-stat-card-clickable' : ''} ${
+          !activeStatusFilter && !activeChangeFilter ? 'iris-stat-card-active' : ''
+        }`}
+        onClick={() => handleCardClick('total')}
+        title="View all discovered documents"
+      >
         <div className="iris-crawler-stat-icon text-slate-600 bg-slate-100">
           <FileText size={20} />
         </div>
@@ -39,7 +74,13 @@ export const CrawlerStatsOverview: React.FC<CrawlerStatsOverviewProps> = ({
         </div>
       </div>
 
-      <div className="iris-crawler-stat-card">
+      <div
+        className={`iris-crawler-stat-card ${onSelectStatus ? 'iris-stat-card-clickable' : ''} ${
+          activeStatusFilter === 'approved' ? 'iris-stat-card-active' : ''
+        }`}
+        onClick={() => handleCardClick('approved')}
+        title="Filter by Approved documents"
+      >
         <div className="iris-crawler-stat-icon text-blue-600 bg-blue-50">
           <CheckCircle2 size={20} />
         </div>
@@ -49,7 +90,13 @@ export const CrawlerStatsOverview: React.FC<CrawlerStatsOverviewProps> = ({
         </div>
       </div>
 
-      <div className="iris-crawler-stat-card">
+      <div
+        className={`iris-crawler-stat-card ${onSelectStatus ? 'iris-stat-card-clickable' : ''} ${
+          activeStatusFilter === 'ingested' ? 'iris-stat-card-active' : ''
+        }`}
+        onClick={() => handleCardClick('ingested')}
+        title="Filter by Ingested in RAG documents"
+      >
         <div className="iris-crawler-stat-icon text-emerald-600 bg-emerald-50">
           <Database size={20} />
         </div>
@@ -59,7 +106,13 @@ export const CrawlerStatsOverview: React.FC<CrawlerStatsOverviewProps> = ({
         </div>
       </div>
 
-      <div className="iris-crawler-stat-card">
+      <div
+        className={`iris-crawler-stat-card ${onSelectChangeStatus ? 'iris-stat-card-clickable' : ''} ${
+          activeChangeFilter === 'potentially_changed' ? 'iris-stat-card-active' : ''
+        }`}
+        onClick={() => handleCardClick('changed')}
+        title="Filter by Potentially Changed documents"
+      >
         <div className="iris-crawler-stat-icon text-amber-600 bg-amber-50">
           <AlertTriangle size={20} />
         </div>
@@ -69,7 +122,13 @@ export const CrawlerStatsOverview: React.FC<CrawlerStatsOverviewProps> = ({
         </div>
       </div>
 
-      <div className="iris-crawler-stat-card">
+      <div
+        className={`iris-crawler-stat-card ${onSelectStatus ? 'iris-stat-card-clickable' : ''} ${
+          activeStatusFilter === 'download_failed' || activeStatusFilter === 'ingest_failed' ? 'iris-stat-card-active' : ''
+        }`}
+        onClick={() => handleCardClick('failed')}
+        title="Filter by Failed acquisitions"
+      >
         <div className="iris-crawler-stat-icon text-rose-600 bg-rose-50">
           <AlertCircle size={20} />
         </div>
