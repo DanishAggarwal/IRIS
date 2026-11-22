@@ -3,6 +3,12 @@ import type {
   ChatResponse,
   ConversationDetail,
   ConversationListResponse,
+  CrawlerScan,
+  CrawlerSource,
+  DiscoveredDocument,
+  DiscoveredDocumentListResponse,
+  DocumentAudit,
+  DocumentIngestionStatus,
   HealthResponse,
   PublicResponseStatus,
   UserProfile,
@@ -256,4 +262,170 @@ export async function sendChatQuery(request: ChatRequest): Promise<ChatResponse>
     conversation_id: (rawData.conversation_id as string) || null,
     message_id: (rawData.message_id as string) || null,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Crawler & Document Acquisition Admin APIs
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all configured crawler sources via GET /admin/crawler/sources.
+ */
+export async function listCrawlerSources(): Promise<CrawlerSource[]> {
+  const response = await fetchWithAuth('/admin/crawler/sources', { method: 'GET' })
+  return parseResponseJson<CrawlerSource[]>(response)
+}
+
+/**
+ * Trigger an asynchronous crawler scan via POST /admin/crawler/scan.
+ */
+export async function triggerCrawlerScan(sourceId?: string): Promise<CrawlerScan> {
+  const response = await fetchWithAuth('/admin/crawler/scan', {
+    method: 'POST',
+    body: JSON.stringify(sourceId ? { source_id: sourceId } : {}),
+  })
+  return parseResponseJson<CrawlerScan>(response)
+}
+
+/**
+ * Fetch latest scan status via GET /admin/crawler/scans/latest.
+ */
+export async function getLatestCrawlerScan(): Promise<CrawlerScan | null> {
+  const response = await fetchWithAuth('/admin/crawler/scans/latest', { method: 'GET' })
+  if (response.status === 404) {
+    return null
+  }
+  return parseResponseJson<CrawlerScan>(response)
+}
+
+/**
+ * Fetch specific scan status by scan ID via GET /admin/crawler/scans/{scanId}.
+ */
+export async function getCrawlerScan(scanId: string): Promise<CrawlerScan> {
+  const response = await fetchWithAuth(`/admin/crawler/scans/${scanId}`, { method: 'GET' })
+  return parseResponseJson<CrawlerScan>(response)
+}
+
+export interface DiscoveredDocumentFilterParams {
+  page?: number
+  pageSize?: number
+  sourceId?: string
+  status?: string
+  category?: string
+  changeStatus?: string
+  search?: string
+}
+
+/**
+ * Query discovered document catalogue with pagination & filters via GET /admin/crawler/documents.
+ */
+export async function listDiscoveredDocuments(
+  params: DiscoveredDocumentFilterParams = {},
+): Promise<DiscoveredDocumentListResponse> {
+  const query = new URLSearchParams()
+  if (params.page) query.set('page', String(params.page))
+  if (params.pageSize) query.set('page_size', String(params.pageSize))
+  if (params.sourceId) query.set('source_id', params.sourceId)
+  if (params.status) query.set('status', params.status)
+  if (params.category) query.set('category', params.category)
+  if (params.changeStatus) query.set('change_status', params.changeStatus)
+  if (params.search && params.search.trim()) query.set('search', params.search.trim())
+
+  const queryString = query.toString()
+  const endpoint = `/admin/crawler/documents${queryString ? `?${queryString}` : ''}`
+  const response = await fetchWithAuth(endpoint, { method: 'GET' })
+  return parseResponseJson<DiscoveredDocumentListResponse>(response)
+}
+
+/**
+ * Fetch single discovered document detail via GET /admin/crawler/documents/{documentId}.
+ */
+export async function getDiscoveredDocument(documentId: string): Promise<DiscoveredDocument> {
+  const response = await fetchWithAuth(`/admin/crawler/documents/${documentId}`, { method: 'GET' })
+  return parseResponseJson<DiscoveredDocument>(response)
+}
+
+/**
+ * Get high-level catalogue statistics via GET /admin/crawler/stats.
+ */
+export async function getCrawlerStats(): Promise<Record<string, number>> {
+  const response = await fetchWithAuth('/admin/crawler/stats', { method: 'GET' })
+  return parseResponseJson<Record<string, number>>(response)
+}
+
+/**
+ * Approve a discovered document via POST /admin/crawler/documents/{documentId}/approve.
+ */
+export async function approveDocument(documentId: string): Promise<DiscoveredDocument> {
+  const response = await fetchWithAuth(`/admin/crawler/documents/${documentId}/approve`, {
+    method: 'POST',
+  })
+  return parseResponseJson<DiscoveredDocument>(response)
+}
+
+/**
+ * Reject a candidate document with optional reason via POST /admin/crawler/documents/{documentId}/reject.
+ */
+export async function rejectDocument(
+  documentId: string,
+  reason?: string,
+): Promise<DiscoveredDocument> {
+  const response = await fetchWithAuth(`/admin/crawler/documents/${documentId}/reject`, {
+    method: 'POST',
+    body: JSON.stringify(reason ? { reason } : {}),
+  })
+  return parseResponseJson<DiscoveredDocument>(response)
+}
+
+/**
+ * Reset a rejected document back to discovered via POST /admin/crawler/documents/{documentId}/reconsider.
+ */
+export async function reconsiderDocument(documentId: string): Promise<DiscoveredDocument> {
+  const response = await fetchWithAuth(`/admin/crawler/documents/${documentId}/reconsider`, {
+    method: 'POST',
+  })
+  return parseResponseJson<DiscoveredDocument>(response)
+}
+
+/**
+ * Fetch audit history for a document via GET /admin/crawler/documents/{documentId}/history.
+ */
+export async function getDocumentHistory(documentId: string): Promise<DocumentAudit[]> {
+  const response = await fetchWithAuth(`/admin/crawler/documents/${documentId}/history`, {
+    method: 'GET',
+  })
+  return parseResponseJson<DocumentAudit[]>(response)
+}
+
+/**
+ * Initiate acquisition and ingestion of an approved document via POST /admin/crawler/documents/{documentId}/ingest.
+ */
+export async function ingestDocument(documentId: string): Promise<DiscoveredDocument> {
+  const response = await fetchWithAuth(`/admin/crawler/documents/${documentId}/ingest`, {
+    method: 'POST',
+  })
+  return parseResponseJson<DiscoveredDocument>(response)
+}
+
+/**
+ * Retry failed download or ingestion via POST /admin/crawler/documents/{documentId}/retry.
+ */
+export async function retryDocument(documentId: string): Promise<DiscoveredDocument> {
+  const response = await fetchWithAuth(`/admin/crawler/documents/${documentId}/retry`, {
+    method: 'POST',
+  })
+  return parseResponseJson<DiscoveredDocument>(response)
+}
+
+/**
+ * Poll live download/ingestion status via GET /admin/crawler/documents/{documentId}/ingestion-status.
+ */
+export async function getDocumentIngestionStatus(
+  documentId: string,
+): Promise<DocumentIngestionStatus> {
+  const response = await fetchWithAuth(
+    `/admin/crawler/documents/${documentId}/ingestion-status`,
+    { method: 'GET' },
+  )
+  return parseResponseJson<DocumentIngestionStatus>(response)
 }

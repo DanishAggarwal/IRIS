@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sparkles, Menu, LogOut, ShieldAlert, User as UserIcon } from 'lucide-react'
+import { Sparkles, Menu, LogOut, ShieldAlert, User as UserIcon, Database, MessageSquare } from 'lucide-react'
 import { StatusBadge } from './StatusBadge'
 import type { ConnectionStatus } from '../../types/chat'
 import type { UserProfile } from '../../types/api'
@@ -7,6 +7,8 @@ import type { UserProfile } from '../../types/api'
 interface HeaderProps {
   connectionStatus: ConnectionStatus
   user: UserProfile | null
+  currentView?: 'chat' | 'crawler'
+  onNavigateView?: (view: 'chat' | 'crawler') => void
   onToggleSidebar?: () => void
   onLogout?: () => void
 }
@@ -14,6 +16,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   connectionStatus,
   user,
+  currentView = 'chat',
+  onNavigateView,
   onToggleSidebar,
   onLogout,
 }) => {
@@ -21,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="iris-header">
       <div className="iris-header-content">
         <div className="iris-brand-group">
-          {onToggleSidebar && (
+          {onToggleSidebar && currentView === 'chat' && (
             <button
               type="button"
               onClick={onToggleSidebar}
@@ -50,6 +54,33 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="iris-header-actions">
+          {/* Admin Navigation Toggle */}
+          {user && user.role === 'admin' && onNavigateView && (
+            <div className="iris-admin-nav-group">
+              {currentView === 'chat' ? (
+                <button
+                  type="button"
+                  onClick={() => onNavigateView('crawler')}
+                  className="iris-btn-nav-portal"
+                  title="Document Management & Crawler Portal"
+                >
+                  <Database size={15} />
+                  <span>Document Portal</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onNavigateView('chat')}
+                  className="iris-btn-nav-portal"
+                  title="Back to Assistant Chat"
+                >
+                  <MessageSquare size={15} />
+                  <span>Back to Assistant</span>
+                </button>
+              )}
+            </div>
+          )}
+
           <StatusBadge status={connectionStatus} />
 
           {user && (

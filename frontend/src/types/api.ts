@@ -97,3 +97,111 @@ export interface ReadinessResponse {
 export interface APIErrorDetail {
   detail: string
 }
+
+export interface CrawlerSource {
+  id: string
+  source_id: string
+  name: string
+  url: string
+  category: string
+  strategy: string
+  enabled: boolean
+  config?: Record<string, unknown> | null
+  last_scanned_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type DocumentLifecycleStatus =
+  | 'discovered'
+  | 'pending_approval'
+  | 'approved'
+  | 'rejected'
+  | 'downloading'
+  | 'ingesting'
+  | 'ingested'
+  | 'download_failed'
+  | 'ingest_failed'
+
+export type DocumentChangeStatus = 'unknown' | 'unchanged' | 'potentially_changed'
+
+export interface DiscoveredDocument {
+  id: string
+  source_id: string
+  title: string
+  source_page_url: string
+  download_url: string
+  category: string
+  file_type: string
+  publication_date?: string | null
+  meeting_number?: string | null
+  academic_year?: string | null
+  status: DocumentLifecycleStatus | string
+  change_status: DocumentChangeStatus | string
+  http_etag?: string | null
+  http_last_modified?: string | null
+  http_content_length?: number | null
+  last_checked_at?: string | null
+  rejection_reason?: string | null
+  approved_by?: string | null
+  approved_at?: string | null
+  local_filename?: string | null
+  ingested_document_id?: string | null
+  downloaded_at?: string | null
+  ingested_at?: string | null
+  error_message?: string | null
+  sha256?: string | null
+  first_discovered_at: string
+  last_discovered_at: string
+  last_scanned_at: string
+  metadata?: Record<string, unknown> | null
+}
+
+export interface DiscoveredDocumentListResponse {
+  items: DiscoveredDocument[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+  stats: Record<string, number>
+}
+
+export interface DocumentAudit {
+  id: string
+  document_id: string
+  admin_email: string
+  action: string
+  previous_status: string
+  new_status: string
+  reason?: string | null
+  created_at: string
+}
+
+export interface CrawlerScan {
+  id: string
+  source_id?: string | null
+  status: 'running' | 'completed' | 'failed' | string
+  total_sources: number
+  total_discovered: number
+  new_documents: number
+  updated_documents: number
+  potentially_changed: number
+  error_message?: string | null
+  initiated_by: string
+  started_at: string
+  completed_at?: string | null
+}
+
+export interface DocumentIngestionStatus {
+  id: string
+  title: string
+  download_url: string
+  status: string
+  change_status: string
+  sha256?: string | null
+  local_filename?: string | null
+  ingested_document_id?: string | null
+  downloaded_at?: string | null
+  ingested_at?: string | null
+  error_message?: string | null
+}
