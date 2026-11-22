@@ -1734,6 +1734,45 @@ body {
    IRIS â€” Crawler Document Management Portal
    ========================================================================== */
 
+/* Admin Navigation Tabs (Co-Primary) */
+.iris-admin-nav-tabs {
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+  margin-right: 8px;
+}
+
+.iris-admin-nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+}
+
+.iris-admin-nav-tab:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.iris-admin-nav-tab-active {
+  background-color: var(--iris-accent-600) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
 .iris-btn-nav-portal {
   display: inline-flex;
   align-items: center;
@@ -2886,4 +2925,251 @@ body {
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--iris-text-secondary);
+}
+
+/* ==========================================================================
+   IRIS — Floating Mini Assistant Widget & Drawer
+   ========================================================================== */
+
+/* Floating Launcher Trigger */
+.iris-floating-assistant-launcher {
+  position: fixed;
+  bottom: 24px;
+  right: 28px;
+  z-index: 999;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+  padding: 12px 20px;
+  box-shadow: 0 10px 25px -3px rgba(37, 99, 235, 0.45), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.iris-floating-assistant-launcher:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 14px 28px -3px rgba(37, 99, 235, 0.55), 0 6px 10px -2px rgba(0, 0, 0, 0.15);
+}
+
+.iris-floating-assistant-launcher:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.iris-floating-badge {
+  background-color: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Floating Quarter-Size Mini Assistant Panel */
+.iris-mini-assistant-panel {
+  position: fixed;
+  bottom: 24px;
+  right: 28px;
+  z-index: 1000;
+  width: 440px;
+  height: 600px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 70px);
+  background-color: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 45px -5px rgba(15, 23, 42, 0.25), 0 8px 16px -4px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: iris-mini-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes iris-mini-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Mini Assistant Header */
+.iris-mini-assistant-header {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.iris-mini-assistant-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.iris-mini-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.iris-mini-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.iris-mini-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  display: inline-block;
+}
+
+.iris-mini-subtitle {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.iris-mini-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.iris-btn-mini-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.iris-btn-mini-action:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* Mini Assistant Body */
+.iris-mini-assistant-body {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.iris-mini-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: auto 0;
+  padding: 16px 8px;
+}
+
+.iris-mini-welcome-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.iris-mini-suggestions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.iris-mini-suggestion-pill {
+  width: 100%;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #334155;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.iris-mini-suggestion-pill:hover {
+  background-color: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+  transform: translateX(2px);
+}
+
+.iris-mini-messages-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.iris-mini-messages-wrapper .iris-message-list {
+  padding: 4px 0;
+}
+
+.iris-mini-messages-wrapper .iris-message-row {
+  margin-bottom: 12px;
+}
+
+/* Mini Assistant Footer */
+.iris-mini-assistant-footer {
+  background-color: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  padding: 10px 12px;
+}
+
+.iris-mini-assistant-footer .iris-composer {
+  border-radius: 8px;
+}
+
+.iris-mini-assistant-footer .iris-composer-textarea {
+  min-height: 48px;
+  max-height: 100px;
+  font-size: 0.82rem;
 }

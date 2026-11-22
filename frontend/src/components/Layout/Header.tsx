@@ -54,31 +54,32 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="iris-header-actions">
-          {/* Admin Navigation Toggle */}
+          {/* Admin Co-Primary Navigation */}
           {user && user.role === 'admin' && onNavigateView && (
-            <div className="iris-admin-nav-group">
-              {currentView === 'chat' ? (
-                <button
-                  type="button"
-                  onClick={() => onNavigateView('crawler')}
-                  className="iris-btn-nav-portal"
-                  title="Document Management & Crawler Portal"
-                >
-                  <Database size={15} />
-                  <span>Document Portal</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => onNavigateView('chat')}
-                  className="iris-btn-nav-portal"
-                  title="Back to Assistant Chat"
-                >
-                  <MessageSquare size={15} />
-                  <span>Back to Assistant</span>
-                </button>
-              )}
-            </div>
+            <nav className="iris-admin-nav-tabs" aria-label="Portal Navigation">
+              <button
+                type="button"
+                onClick={() => onNavigateView('crawler')}
+                className={`iris-admin-nav-tab ${
+                  currentView === 'crawler' ? 'iris-admin-nav-tab-active' : ''
+                }`}
+                title="PEC Document Catalogue & Ingestion Portal"
+              >
+                <Database size={15} />
+                <span>Document Portal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigateView('chat')}
+                className={`iris-admin-nav-tab ${
+                  currentView === 'chat' ? 'iris-admin-nav-tab-active' : ''
+                }`}
+                title="Full Screen Assistant Chat"
+              >
+                <MessageSquare size={15} />
+                <span>Full Assistant</span>
+              </button>
+            </nav>
           )}
 
           <StatusBadge status={connectionStatus} />
