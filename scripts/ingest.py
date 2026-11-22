@@ -153,7 +153,11 @@ def show_status() -> None:
     print("-" * 92)
     for d in summary["documents"]:
         emb_str = f"{d['embedded']}/{d['chunks']}"
-        print(f"{d['filename'][:44]:<45} {d['pages']:<7} {d['type']:<10} {d['status']:<10} {d['chunks']:<8} {emb_str:<8}")
+        pages_str = str(d.get("pages") if d.get("pages") is not None else "0")
+        type_str = str(d.get("type") if d.get("type") is not None else "unknown")
+        status_str = str(d.get("status") if d.get("status") is not None else "unknown")
+        chunks_str = str(d.get("chunks") if d.get("chunks") is not None else "0")
+        print(f"{d['filename'][:44]:<45} {pages_str:<7} {type_str:<10} {status_str:<10} {chunks_str:<8} {emb_str:<8}")
 
     print("-" * 92)
     print(f"Total Documents:  {summary['total_documents']}")
