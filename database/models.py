@@ -298,3 +298,97 @@ class Message(Base):
     def __repr__(self) -> str:
         return f"<Message id={self.id} conv={self.conversation_id} role={self.role!r} status={self.status!r}>"
 
+
+class CrawlerSource(Base):
+    """Configured PEC institutional source webpage for document discovery."""
+
+    __tablename__ = "crawler_sources"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    source_id: Mapped[str] = mapped_column(Text, unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    strategy: Mapped[str] = mapped_column(Text, nullable=False, default="generic_link")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    last_scanned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    discovered_documents: Mapped[list["DiscoveredDocument"]] = relationship(
+        "DiscoveredDocument",
+        back_populates="source",
+        cascade="all, delete-orphan",
+    )
+
+    def __repr__(self) -> str:
+        return f"<CrawlerSource source_id={self.source_id!r} enabled={self.enabled}>"
+
+
+class DiscoveredDocument(Base):
+    """Discovered candidate document record before downloading and approval."""
+
+    __tablename__ = "discovered_documents"
+    __table_args__ = (
+        UniqueConstraint("source_id", "download_url", name="uq_discovered_source_download"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    source_id: Mapped[str] = mapped_column(
+        Text,
+        ForeignKey("crawler_sources.source_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    source_page_url: Mapped[str] = mapped_column(Text, nullable=False)
+    download_url: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    file_type: Mapped[str] = mapped_column(Text, nullable=False, default="pdf")
+    publication_date: Mapped[str | None] = mapped_column(Text, nullable=True)
+    meeting_number: Mapped[str | None] = mapped_column(Text, nullable=True)
+    academic_year: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(Text, index=True, nullable=False, default="discovered")
+    sha256: Mapped[str | None] = mapped_column(Text, index=True, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    first_discovered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_discovered_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_scanned_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    source: Mapped["CrawlerSource"] = relationship(
+        "CrawlerSource", back_populates="discovered_documents"
+    )
+
+    def __repr__(self) -> str:
+        return f"<DiscoveredDocument id={self.id} title={self.title!r} status={self.status!r}>"
