@@ -27,6 +27,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Allowed CORS Origins: {settings.allowed_origins}")
 
+    # Recover stale/interrupted scans left in 'running' status from a previous process
+    try:
+        from database.connection import SessionLocal
+        from crawler.catalog import recover_stale_scans_on_startup
+
+        with SessionLocal() as db:
+            recovered = recover_stale_scans_on_startup(db)
+            if recovered > 0:
+                logger.warning("Recovered %d interrupted crawler scans on startup.", recovered)
+    except Exception as exc:
+        logger.error("Failed to run crawler startup recovery: %s", exc)
+
     yield
     logger.info("Shutting down IRIS API service.")
 

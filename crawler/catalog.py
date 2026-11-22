@@ -1,11 +1,12 @@
 """Database catalog repository for managing crawler sources, discovered documents, change detection, and approvals."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import logging
 from typing import Optional
 import uuid
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from crawler.config import DEFAULT_PEC_SOURCES, DiscoveredItem, SourceConfig
@@ -361,6 +362,32 @@ def get_document_approval_history(
 # Scan Execution Management & Concurrency Guard
 # ---------------------------------------------------------------------------
 
+STALE_SCAN_THRESHOLD_SECONDS = 1800  # 30 minutes
+
+
+def recover_stale_scans_on_startup(session: Session) -> int:
+    """Identify and fail any scan records left in 'running' status from a previous process.
+
+    Safe to run on FastAPI startup. Does not touch completed or failed scans.
+    """
+    now = datetime.now(timezone.utc)
+    stale_scans = list(
+        session.scalars(
+            select(CrawlerScan).where(CrawlerScan.status == "running")
+        ).all()
+    )
+    if not stale_scans:
+        return 0
+
+    for scan in stale_scans:
+        scan.status = "failed"
+        scan.error_message = "Scan interrupted by application restart."
+        scan.completed_at = now
+
+    session.commit()
+    logger.info("Recovered %d stale/orphaned running scans on startup.", len(stale_scans))
+    return len(stale_scans)
+
 
 def start_scan_execution(
     session: Session,
@@ -369,8 +396,34 @@ def start_scan_execution(
 ) -> CrawlerScan:
     """Register a new scan execution.
 
-    Enforces concurrency lock: raises RuntimeError if an active scan is already running.
+    Enforces concurrency lock:
+    1. Recovers any stale scans exceeding timeout threshold.
+    2. Python check-and-raise for active running scans.
+    3. Database partial unique index on status='running' prevents race-condition collisions.
     """
+    now = datetime.now(timezone.utc)
+
+    # 1. Recover any stale scans running longer than threshold
+    stale_cutoff = now - timedelta(seconds=STALE_SCAN_THRESHOLD_SECONDS)
+    stale_scans = list(
+        session.scalars(
+            select(CrawlerScan).where(
+                CrawlerScan.status == "running",
+                CrawlerScan.started_at <= stale_cutoff,
+            )
+        ).all()
+    )
+    for stale in stale_scans:
+        stale.status = "failed"
+        stale.error_message = (
+            f"Scan exceeded timeout threshold of {STALE_SCAN_THRESHOLD_SECONDS}s (stale scan recovered)."
+        )
+        stale.completed_at = now
+    if stale_scans:
+        session.commit()
+        logger.warning("Recovered %d timed-out running scan(s).", len(stale_scans))
+
+    # 2. Check for active running scan
     running_scan = session.scalar(
         select(CrawlerScan).where(CrawlerScan.status == "running")
     )
@@ -383,12 +436,18 @@ def start_scan_execution(
         source_id=source_id,
         status="running",
         initiated_by=initiated_by,
-        started_at=datetime.now(timezone.utc),
+        started_at=now,
     )
     session.add(scan)
-    session.commit()
-    session.refresh(scan)
-    return scan
+    try:
+        session.commit()
+        session.refresh(scan)
+        return scan
+    except IntegrityError:
+        session.rollback()
+        raise RuntimeError(
+            "A discovery scan is already in progress (enforced by concurrency lock)."
+        )
 
 
 def complete_scan_execution(

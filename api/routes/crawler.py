@@ -49,7 +49,10 @@ router = APIRouter(prefix="/admin/crawler", tags=["Admin Document Crawler"])
 
 
 def _execute_background_scan(scan_id: uuid.UUID, source_id: Optional[str]) -> None:
-    """Worker task executed in FastAPI background thread to run discovery scan."""
+    """Worker task executed in FastAPI background thread to run discovery scan.
+
+    Isolates per-source errors: a failure on one source does not abort the others.
+    """
     db: Session = SessionLocal()
     try:
         logger.info("Background scan %s started (source_id=%s)", scan_id, source_id)
@@ -59,28 +62,78 @@ def _execute_background_scan(scan_id: uuid.UUID, source_id: Optional[str]) -> No
         else:
             sources_to_scan = get_all_sources(db, enabled_only=True)
 
+        if not sources_to_scan:
+            logger.warning("Background scan %s: No enabled sources found to scan.", scan_id)
+            complete_scan_execution(
+                session=db,
+                scan_id=scan_id,
+                total_sources=0,
+                total_discovered=0,
+                new_documents=0,
+                updated_documents=0,
+                potentially_changed=0,
+                error_message="No enabled crawler sources found to scan.",
+                status="completed",
+            )
+            return
+
         engine = PECCrawlerEngine()
         total_discovered = 0
         new_docs = 0
         updated_docs = 0
         potentially_changed = 0
 
+        successful_sources = []
+        failed_sources = []
+        per_source_errors: dict[str, str] = {}
+
         for src in sources_to_scan:
-            cfg = SourceConfig(
-                source_id=src.source_id,
-                name=src.name,
-                url=src.url,
-                category=src.category,
-                strategy=src.strategy,
-                enabled=src.enabled,
-                config=src.config or {},
+            try:
+                cfg = SourceConfig(
+                    source_id=src.source_id,
+                    name=src.name,
+                    url=src.url,
+                    category=src.category,
+                    strategy=src.strategy,
+                    enabled=src.enabled,
+                    config=src.config or {},
+                )
+                items = engine.scan_source(cfg)
+                total_discovered += len(items)
+                n, u, c = upsert_discovered_documents(db, src.source_id, items)
+                new_docs += n
+                updated_docs += u
+                potentially_changed += c
+                successful_sources.append(src.source_id)
+                logger.info(
+                    "Source '%s' scanned successfully (%d discovered, %d new, %d changed).",
+                    src.source_id,
+                    len(items),
+                    n,
+                    c,
+                )
+            except Exception as src_exc:
+                logger.error("Scan failed for source '%s': %s", src.source_id, src_exc, exc_info=True)
+                failed_sources.append(src.source_id)
+                per_source_errors[src.source_id] = str(src_exc)
+
+        # Determine overall scan outcome
+        if len(failed_sources) == len(sources_to_scan):
+            # All sources failed
+            scan_status = "failed"
+            error_details = "; ".join([f"{sid}: {err}" for sid, err in per_source_errors.items()])
+            summary_err = f"All {len(sources_to_scan)} source(s) failed: {error_details}"
+        elif failed_sources:
+            # Partial success: at least one source succeeded
+            scan_status = "completed"
+            error_details = "; ".join([f"{sid}: {err}" for sid, err in per_source_errors.items()])
+            summary_err = (
+                f"Partial scan success ({len(successful_sources)}/{len(sources_to_scan)} succeeded). "
+                f"Failures: {error_details}"
             )
-            items = engine.scan_source(cfg)
-            total_discovered += len(items)
-            n, u, c = upsert_discovered_documents(db, src.source_id, items)
-            new_docs += n
-            updated_docs += u
-            potentially_changed += c
+        else:
+            scan_status = "completed"
+            summary_err = None
 
         complete_scan_execution(
             session=db,
@@ -90,18 +143,20 @@ def _execute_background_scan(scan_id: uuid.UUID, source_id: Optional[str]) -> No
             new_documents=new_docs,
             updated_documents=updated_docs,
             potentially_changed=potentially_changed,
-            error_message=None,
+            error_message=summary_err,
+            status=scan_status,
         )
         logger.info(
-            "Background scan %s completed successfully: %d discovered, %d new, %d updated, %d changed.",
+            "Background scan %s finalized with status '%s': %d discovered (%d new, %d updated, %d changed).",
             scan_id,
+            scan_status,
             total_discovered,
             new_docs,
             updated_docs,
             potentially_changed,
         )
     except Exception as exc:
-        logger.error("Background scan %s failed: %s", scan_id, exc, exc_info=True)
+        logger.error("Background scan %s encountered fatal error: %s", scan_id, exc, exc_info=True)
         try:
             complete_scan_execution(
                 session=db,
@@ -111,7 +166,8 @@ def _execute_background_scan(scan_id: uuid.UUID, source_id: Optional[str]) -> No
                 new_documents=0,
                 updated_documents=0,
                 potentially_changed=0,
-                error_message=str(exc),
+                error_message=f"Fatal scan error: {exc}",
+                status="failed",
             )
         except Exception:
             pass

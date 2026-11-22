@@ -446,3 +446,213 @@ def test_repeated_scan_preserves_human_approval_decision(db_session, admin_user,
 
 
 # ---------------------------------------------------------------------------
+# 7. Stale Scan Recovery & Startup Handling (Issue 1)
+# ---------------------------------------------------------------------------
+
+
+def test_stale_scan_startup_recovery(db_session):
+    """Verify startup recovery marks orphaned running scans failed while preserving completed ones."""
+    from crawler.catalog import recover_stale_scans_on_startup
+
+    # Create one running scan (simulating crash) and one completed scan
+    crashed_scan = CrawlerScan(
+        id=uuid.uuid4(),
+        status="running",
+        initiated_by="admin@pec.edu.in",
+        started_at=datetime.now(timezone.utc),
+    )
+    completed_scan = CrawlerScan(
+        id=uuid.uuid4(),
+        status="completed",
+        initiated_by="admin@pec.edu.in",
+        started_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(timezone.utc),
+    )
+    db_session.add_all([crashed_scan, completed_scan])
+    db_session.commit()
+
+    # Run startup recovery
+    recovered_count = recover_stale_scans_on_startup(db_session)
+    assert recovered_count >= 1
+
+    db_session.refresh(crashed_scan)
+    db_session.refresh(completed_scan)
+
+    assert crashed_scan.status == "failed"
+    assert "application restart" in crashed_scan.error_message
+    assert crashed_scan.completed_at is not None
+
+    # Completed scan must be untouched
+    assert completed_scan.status == "completed"
+
+    # After recovery, a new scan can start cleanly without conflict
+    new_scan = start_scan_execution(db_session, initiated_by="admin@pec.edu.in")
+    assert new_scan.status == "running"
+
+    # Cleanup
+    db_session.delete(crashed_scan)
+    db_session.delete(completed_scan)
+    db_session.delete(new_scan)
+    db_session.commit()
+
+
+def test_stale_scan_timeout_in_start_scan_execution(db_session):
+    """Verify scans running longer than timeout threshold (30m) are recovered upon new scan attempt."""
+    from datetime import timedelta
+    old_time = datetime.now(timezone.utc) - timedelta(minutes=45)
+    stale_scan = CrawlerScan(
+        id=uuid.uuid4(),
+        status="running",
+        initiated_by="admin@pec.edu.in",
+        started_at=old_time,
+    )
+    db_session.add(stale_scan)
+    db_session.commit()
+
+    # Attempting to start a scan should automatically timeout the stale scan and succeed
+    new_scan = start_scan_execution(db_session, initiated_by="admin@pec.edu.in")
+    assert new_scan is not None
+    assert new_scan.status == "running"
+
+    db_session.refresh(stale_scan)
+    assert stale_scan.status == "failed"
+    assert "timeout threshold" in stale_scan.error_message
+
+    # Cleanup
+    db_session.delete(stale_scan)
+    db_session.delete(new_scan)
+    db_session.commit()
+
+
+# ---------------------------------------------------------------------------
+# 8. Database Concurrency Lock via Partial Unique Index (Issue 3)
+# ---------------------------------------------------------------------------
+
+
+def test_database_level_concurrency_race_condition(db_session):
+    """Simulate two simultaneous requests trying to start running scans and verify DB partial unique index enforces safety."""
+    scan1 = start_scan_execution(db_session, initiated_by="admin1@pec.edu.in")
+    assert scan1.status == "running"
+
+    # A second request in a separate session/transaction attempting to start should raise RuntimeError
+    session2 = SessionLocal()
+    try:
+        with pytest.raises(RuntimeError, match="already in progress"):
+            start_scan_execution(session2, initiated_by="admin2@pec.edu.in")
+    finally:
+        session2.close()
+
+    # Cleanup
+    db_session.delete(scan1)
+    db_session.commit()
+
+
+# ---------------------------------------------------------------------------
+# 9. Isolated Per-Source Failure Handling (Issue 4)
+# ---------------------------------------------------------------------------
+
+
+def test_isolated_source_failures_partial_success(db_session):
+    """Verify that if one source fails, remaining sources continue and the scan completes with partial summary."""
+    from api.routes.crawler import _execute_background_scan
+
+    # Seed sources
+    sources = seed_default_sources(db_session)
+    source_ids = [s.source_id for s in sources[:2]]
+
+    scan = start_scan_execution(db_session, initiated_by="admin@pec.edu.in")
+    scan_id = scan.id
+
+    # Mock engine so that source 1 fails with Exception, while source 2 succeeds
+    mock_items = [
+        DiscoveredItem(
+            title="Valid Document from Source 2",
+            source_page_url="https://pec.ac.in/valid",
+            download_url="https://pec.ac.in/valid/doc.pdf",
+            category="Academic",
+        )
+    ]
+
+    def mock_scan_source(cfg):
+        if cfg.source_id == source_ids[0]:
+            raise ConnectionError("Simulated network timeout connecting to PEC server")
+        return mock_items
+
+    with patch("api.routes.crawler.PECCrawlerEngine") as MockEngineCls:
+        mock_instance = MagicMock()
+        mock_instance.scan_source.side_effect = mock_scan_source
+        MockEngineCls.return_value = mock_instance
+
+        # Execute scan
+        _execute_background_scan(scan_id=scan_id, source_id=None)
+
+    # Check scan outcome
+    db_session.refresh(scan)
+    assert scan.status == "completed"
+    assert scan.error_message is not None
+    assert "Partial scan success" in scan.error_message
+    assert "Simulated network timeout" in scan.error_message
+
+    # Verify document from source 2 was successfully persisted despite source 1 failure
+    doc = db_session.query(DiscoveredDocument).filter_by(download_url="https://pec.ac.in/valid/doc.pdf").first()
+    assert doc is not None
+    assert doc.title == "Valid Document from Source 2"
+
+    # Cleanup
+    if doc:
+        db_session.delete(doc)
+    db_session.delete(scan)
+    db_session.commit()
+
+
+def test_isolated_source_failures_all_fail(db_session):
+    """Verify that if all sources fail, the scan status is marked failed with full diagnostic error message."""
+    from api.routes.crawler import _execute_background_scan
+
+    scan = start_scan_execution(db_session, initiated_by="admin@pec.edu.in")
+    scan_id = scan.id
+
+    with patch("api.routes.crawler.PECCrawlerEngine") as MockEngineCls:
+        mock_instance = MagicMock()
+        mock_instance.scan_source.side_effect = RuntimeError("All PEC web endpoints down")
+        MockEngineCls.return_value = mock_instance
+
+        _execute_background_scan(scan_id=scan_id, source_id="tnp-policy")
+
+    db_session.refresh(scan)
+    assert scan.status == "failed"
+    assert "failed" in scan.error_message.lower()
+    assert "All PEC web endpoints down" in scan.error_message
+
+    # Cleanup
+    db_session.delete(scan)
+    db_session.commit()
+
+
+def test_isolated_source_failures_no_enabled_sources(db_session):
+    """Verify that if no sources are enabled, the scan completes safely with an informative message."""
+    from api.routes.crawler import _execute_background_scan
+
+    # Disable all sources temporarily
+    all_sources = get_all_sources(db_session)
+    original_states = {s.source_id: s.enabled for s in all_sources}
+    for s in all_sources:
+        s.enabled = False
+    db_session.commit()
+
+    try:
+        scan = start_scan_execution(db_session, initiated_by="admin@pec.edu.in")
+        scan_id = scan.id
+
+        _execute_background_scan(scan_id=scan_id, source_id=None)
+
+        db_session.refresh(scan)
+        assert scan.status == "completed"
+        assert "No enabled crawler sources" in scan.error_message
+        assert scan.total_discovered == 0
+    finally:
+        # Restore source states
+        for s in all_sources:
+            s.enabled = original_states[s.source_id]
+        db_session.delete(scan)
+        db_session.commit()
