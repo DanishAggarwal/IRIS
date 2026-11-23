@@ -50,7 +50,7 @@ DEFAULT_PEC_SOURCES: list[SourceConfig] = [
         name="Undergraduate Programmes Structure & Scheme",
         url="https://pec.ac.in/programmes/ug/structure",
         category="Curriculum",
-        strategy="generic_link",
+        strategy="curriculum_table",
         enabled=True,
     ),
     SourceConfig(

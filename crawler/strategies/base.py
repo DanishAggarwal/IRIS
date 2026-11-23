@@ -1,6 +1,7 @@
 """Base extraction strategy interface for parsing PEC webpages."""
 
 from abc import ABC, abstractmethod
+from typing import Any, Optional
 from bs4 import BeautifulSoup
 
 from crawler.config import DiscoveredItem, SourceConfig
@@ -15,6 +16,7 @@ class BaseExtractionStrategy(ABC):
         soup: BeautifulSoup,
         page_url: str,
         source_config: SourceConfig,
+        client: Optional[Any] = None,
     ) -> list[DiscoveredItem]:
         """Extract candidate document items from the parsed HTML page.
 

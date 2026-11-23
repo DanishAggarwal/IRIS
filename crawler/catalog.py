@@ -42,6 +42,8 @@ def seed_default_sources(session: Session) -> list[CrawlerSource]:
             session.add(new_src)
             sources.append(new_src)
         else:
+            if existing.strategy != default_src.strategy:
+                existing.strategy = default_src.strategy
             sources.append(existing)
 
     session.commit()

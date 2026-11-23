@@ -124,7 +124,7 @@ class PECCrawlerEngine:
                     continue
 
                 # Extract documents via strategy
-                items = strategy.extract_documents(soup, current_url, source)
+                items = strategy.extract_documents(soup, current_url, source, client=client)
                 for item in items:
                     # Enforce PEC domain on all discovered download URLs
                     if not is_pec_domain(item.download_url):

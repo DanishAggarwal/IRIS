@@ -1,6 +1,7 @@
 """Strategy for extracting Senate Meeting Minutes from structured tables."""
 
 import re
+from typing import Any, Optional
 from urllib.parse import unquote, urldefrag, urljoin, urlparse
 from bs4 import BeautifulSoup
 
@@ -39,6 +40,7 @@ class SenateTableStrategy(BaseExtractionStrategy):
         soup: BeautifulSoup,
         page_url: str,
         source_config: SourceConfig,
+        client: Optional[Any] = None,
     ) -> list[DiscoveredItem]:
         items: list[DiscoveredItem] = []
         seen_urls: set[str] = set()
