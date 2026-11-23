@@ -324,30 +324,109 @@ Acceptance:
 
 Ingestion can remain a local CLI command for the prototype.
 
-### M11 — React frontend
+### M11 — React Frontend, Google OAuth & Conversation History
 
-**Goal:** Provide a simple usable chat prototype.
+**Goal:** Provide an authentic, role-aware institutional assistant with Google OAuth authentication and persistent chat history.
 
 Tasks:
-- Create React + TypeScript app.
-- Build chat view and message display.
-- Connect to FastAPI.
-- Render citations with document/page details.
-- Show loading, error, clarification and abstention states.
-- Keep interface simple and accessible.
+- Create React + TypeScript app with Vite.
+- Implement official Google Identity Services OAuth 2.0 with domain restrictions (`@pec.edu.in`) and administrator allowlist (`ADMIN_EMAILS`).
+- Issue HTTP-only, secure, signed session cookies with 7-day expiration and server-side SHA-256 token hashing.
+- Apply Alembic migration `0005_add_auth_and_conversations.py` creating `users`, `sessions`, `conversations`, and `messages` tables.
+- Build Conversation Sidebar with thread history, rename, delete, and real user badge.
+- Implement multiline composer, stream/chat response rendering with verified citations, and error fallback cards.
 
 Acceptance:
-- User can ask a question through the website.
-- Answer and citations render correctly.
-- Error and non-answer statuses are understandable.
-- No secret keys are exposed.
+- Authenticated students and admins can log in, ask grounded questions, and view verified page citations.
+- Chat history persists across browser sessions and isolates threads per user.
+- All backend authentication and conversation tests pass (100%).
+
+### M12 — Curated Institutional Crawler & Multi-Factor Change Detection
+
+**Goal:** Proactively discover official institutional documents from PEC web sources without manual downloading or boundary escapes.
+
+Tasks:
+- Implement `PECCrawlerEngine` with strict domain security boundaries (`is_pec_domain`).
+- Define `SourceConfig` for 7 curated institutional sources (Senate Minutes, Academic Calendars, Rules & Procedures, Schemes & Syllabi, Training & Placement).
+- Build extraction strategies (`SenateTableStrategy`, `GenericLinkStrategy`).
+- Implement multi-factor change detection inspecting HTTP `ETag`, `Last-Modified`, and `Content-Length` headers alongside SHA-256 content hashes.
+- Apply Alembic migration `0006_add_crawler_tables.py` creating `crawler_sources`, `discovered_documents`, and `crawler_scans` tables.
+- Add administrative trigger and polling endpoints: `POST /admin/crawler/scan`, `GET /admin/crawler/scans/latest`, `GET /admin/crawler/documents`.
+
+Acceptance:
+- Discovery scan reliably catalogs documents from PEC sources without downloading whole PDFs.
+- Remote changes are flagged as `potentially_changed` without overwriting existing data.
+- Unit and integration tests pass (100%).
+
+### M13 — Human-in-the-Loop Document Approval, Rejection & Audit Trails
+
+**Goal:** Give institutional administrators complete governance over which discovered documents enter the RAG knowledge base.
+
+Tasks:
+- Implement lifecycle state machine: `discovered` -> `approved` | `rejected` -> `reconsider` -> `downloading` -> `ingested` | `download_failed` | `ingest_failed`.
+- Apply Alembic migration `0007_add_crawler_approval_and_audit.py` creating the immutable `document_approval_audit` table.
+- Apply Alembic migration `0008_add_crawler_scan_concurrency_index.py` for scan concurrency control.
+- Implement approval endpoints: `POST /admin/crawler/documents/{id}/approve`, `/reject`, `/reconsider`, and audit log retrieval `GET /admin/crawler/documents/{id}/history`.
+- Build administrator approval and rejection UI in React with status badges and modal audit trail inspection.
+
+Acceptance:
+- Only approved documents can be queued for acquisition.
+- Every state transition generates an immutable audit record containing administrator email, timestamp, and optional reason.
+- Non-admin users are strictly forbidden (HTTP 403).
+
+### M14 — Approved Document Acquisition & Automated Ingestion Pipeline
+
+**Goal:** Securely download approved documents, validate PDF integrity, and ingest them directly into the IRIS extraction and vector storage pipeline.
+
+Tasks:
+- Apply Alembic migration `0009_add_crawler_ingestion_columns.py` linking `discovered_documents.ingested_document_id` to `documents.id`.
+- Implement `acquire_and_ingest_document` in `crawler/acquisition.py`.
+- Add PDF integrity validation (`verify_local_pdf` checking magic bytes `%PDF-`, PyMuPDF parseability, and SHA-256 match).
+- Connect directly to IRIS pipeline: digital extraction, Gemini Vision OCR (`gemini-3.5-flash-lite`), text cleaning, structure-aware chunking, and Gemini embeddings (`gemini-embedding-001`).
+- Protect ingestion with global pipeline concurrency lock (`_PIPELINE_LOCK`) and document-level lock (`_ACTIVE_INGESTIONS_LOCK`).
+- Implement acquisition endpoints: `POST /admin/crawler/documents/{id}/ingest`, `POST /admin/crawler/documents/{id}/retry`, and `GET /admin/crawler/documents/{id}/ingestion-status`.
+- Add crash-recovery mechanism (`recover_stale_ingestions_on_startup`) to automatically reset orphaned downloading records across process restarts.
+
+Acceptance:
+- Approved documents download, extract, chunk, and embed with 100% vector store persistence.
+- Acquisition failures capture descriptive diagnostics and allow one-click retry.
+- Server restarts never trap records in permanent downloading states.
+
+### M15 — Administrative UI Overhaul, Floating Mini Assistant & Chronological Sorting
+
+**Goal:** Elevate document curation into a primary administrative workspace while keeping grounded assistant verification instantly accessible.
+
+Tasks:
+- Reorganize administrator view to display the Document Catalogue as the primary screen.
+- Build floating quarter-size expandable Mini Chat Assistant (`MiniAssistant.tsx`) toggleable via floating action button for simultaneous curation and RAG verification.
+- Add horizontal filtering toolbar with source, lifecycle status, change detection, and title/URL search.
+- Implement chronological sorting parsing issued dates (e.g. `18.01.2023`, `13.06.2022`) and academic years (`2023`, `2024`, `2025-26`) from PEC document titles at both database and UI levels.
+- Add batch selection and bulk approval/ingestion actions.
+
+Acceptance:
+- Administrators can review, filter, batch approve, and ingest documents seamlessly.
+- Mini assistant provides grounded answers with citations without navigating away from the catalogue.
+- Documents sort chronologically by issued date.
+
+### M16 — Deep Matrix Curriculum Strategy & Pytest Database Isolation
+
+**Goal:** Traverse multi-level institutional programme schemes and ensure automated tests execute with zero development database pollution.
+
+Tasks:
+- Build `CurriculumStructureStrategy` (`crawler/strategies/curriculum.py`) capable of traversing multi-department tables (e.g. `ug-structure`) and following department landing subpages (`/structure/cse-ai-syllabus`, `/structure/cse-ds-syllabus`, etc.) to extract nested 2023/2024 degree schemes.
+- Discovered 22 additional degree schemes (CSE 2023, CSE AI 2023, CSE DS 2023, Aerospace 2023, Civil 2024, ECE, VLSI 2024, Mech, Math & Computing 2024), expanding catalogue to 129 documents.
+- Implement automated Pytest database isolation in `tests/conftest.py` dynamically binding all test runs to `iris_test_db` with isolated pgvector extension.
+- Purge residual synthetic test records from the live development database (`iris_db`).
+
+Acceptance:
+- All 33 UG discipline schemes in the PEC curriculum matrix are fully catalogued.
+- Running `pytest` never alters or leaks test rows into the live development database.
+- 46/46 crawler backend tests and 60/60 frontend Vitest tests pass cleanly.
 
 ## 4. Future milestones — deferred
 
 Only begin these after the prototype has reliable ingestion, retrieval and grounded answers:
 
-- **Authentication/users:** institutional Google OAuth, backend token verification, user records and roles.
-- **Conversation history:** conversations/messages tables, ownership enforcement and saved history.
 - **Google Drive:** connector that feeds the existing ingestion pipeline.
 - **Cloud deployment:** managed PostgreSQL + pgvector, object storage, containerised services, backups and monitoring.
 - **Advanced retrieval:** hybrid search, reranking, query rewriting, filters when evaluation supports them.
