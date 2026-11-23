@@ -22,7 +22,11 @@ from api.schemas import (
     DocumentIngestionStatusResponse,
     DocumentRejectionRequest,
 )
-from crawler.acquisition import acquire_and_ingest_document
+from crawler.acquisition import (
+    acquire_and_ingest_document,
+    is_ingestion_active,
+    recover_stale_ingestions_on_startup,
+)
 from database.models import DiscoveredDocument
 from crawler.catalog import (
     approve_document,
@@ -333,6 +337,7 @@ def list_documents(
     admin_user: User = Depends(require_admin),
 ) -> DiscoveredDocumentListResponse:
     """Retrieve discovered documents with pagination, filters, sorting, and catalogue totals."""
+    recover_stale_ingestions_on_startup(db)
     total, docs = list_discovered_documents_paginated(
         session=db,
         page=page,
@@ -388,6 +393,7 @@ def get_stats(
     admin_user: User = Depends(require_admin),
 ) -> dict[str, int]:
     """Return catalogue document totals grouped by lifecycle status."""
+    recover_stale_ingestions_on_startup(db)
     return get_catalog_stats(db)
 
 
@@ -569,11 +575,17 @@ def retry_document_endpoint(
             detail=f"Discovered document with ID '{document_id}' not found.",
         )
     if doc.status in ("downloading", "ingesting"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Acquisition for document '{doc.title}' is already in progress (status: {doc.status}).",
+        if is_ingestion_active(document_id):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Acquisition for document '{doc.title}' is already in progress (status: {doc.status}).",
+            )
+        logger.warning(
+            "Document %s was marked as '%s' but is not active in memory. Allowing retry.",
+            document_id,
+            doc.status,
         )
-    if doc.status not in ("download_failed", "ingest_failed"):
+    elif doc.status not in ("download_failed", "ingest_failed"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Document with status '{doc.status}' is not in a failed state and cannot be retried.",

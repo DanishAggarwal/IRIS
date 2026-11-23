@@ -44,6 +44,12 @@ _ACTIVE_INGESTIONS: set[uuid.UUID] = set()
 _ACTIVE_INGESTIONS_LOCK = threading.Lock()
 
 
+def is_ingestion_active(document_id: uuid.UUID) -> bool:
+    """Return True if a document acquisition is currently executing in memory."""
+    with _ACTIVE_INGESTIONS_LOCK:
+        return document_id in _ACTIVE_INGESTIONS
+
+
 def verify_local_pdf(
     file_path: Path, expected_sha256: Optional[str] = None
 ) -> Tuple[bool, Optional[str], Optional[str]]:
@@ -87,13 +93,18 @@ def recover_stale_ingestions_on_startup(session: Session) -> int:
     - Validated local files in documents/ are preserved so admins can retry them cleanly.
     - Appends immutable audit records for recovered operations.
     """
-    stale_docs = list(
-        session.scalars(
+    with _ACTIVE_INGESTIONS_LOCK:
+        active_ids = set(_ACTIVE_INGESTIONS)
+
+    stale_docs = [
+        d
+        for d in session.scalars(
             select(DiscoveredDocument).where(
                 DiscoveredDocument.status.in_(["downloading", "ingesting"])
             )
         ).all()
-    )
+        if d.id not in active_ids
+    ]
     if not stale_docs:
         return 0
 
