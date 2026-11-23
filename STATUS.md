@@ -1,7 +1,7 @@
 # IRIS — Current Status
 
-**Current stage:** Milestone 11 Complete — Checkpoint Saved
-**Current focus:** Enhancing RAG generator for temporal recency precedence and student-friendly advisor tone.
+**Current stage:** PEC Crawler Discovery, Approval & Acquisition Engine Complete — Checkpoint Saved
+**Current focus:** Ready for next phase / evaluation.
 
 ## Completed
 - [x] Project purpose and initial scope agreed.
@@ -12,17 +12,17 @@
 - [x] Multi-agent orchestration, authentication, persistent chat history, Drive integration and cloud deployment deferred.
 - [x] Prototype data policy set to public/student-wide documents manually selected by the user.
 - [x] Anchor documentation prepared.
-- [x] **Milestone 0–10 Completed.** (See Git history).
-- [x] **Milestone 11 Completed:**
-  - Google OAuth 2.0 / OpenID Connect authentication with domain restrictions (`@pec.edu.in`) and personal admin allowlist.
-  - HTTP-only signed session cookies with 7-day expiration.
-  - User and Conversation History models and Alembic migration `0005_add_auth_and_conversations.py`.
-  - Conversation management API endpoints (list, get, create, rename, delete).
-  - React frontend authentication flow (Google Sign-In, error alerts, login screen).
-  - React sidebar component with conversation history, rename, delete, and real user badge.
-  - Model fallback chain (`gemini-3.5-flash-lite` -> `gemini-3.1-flash-lite`) and 503 capacity limit error card in chat.
-  - Single-command unified ingestion runner: `scripts/ingest.py`.
-  - All 141 backend tests and 50 frontend tests passing.
+- [x] **Milestone 0–11 Completed.** (See Git history).
+- [x] **PEC Crawler Discovery, Approval & Acquisition Engine Completed:**
+  - Automated PEC web crawler (`PECCrawlerEngine`) scanning 7 curated institutional sources (Senate Minutes, Academic Calendars, Rules & Procedures, UG Curriculum Schemes & Handouts, Training & Placement Policies).
+  - Multi-factor change detection tracking SHA-256 hashes, content lengths, HTTP ETag/Last-Modified headers, and detecting remote document updates.
+  - Human-in-the-loop approval workflow with lifecycle statuses (`discovered`, `approved`, `rejected`, `downloading`, `ingested`, `download_failed`, `ingest_failed`) and immutable audit trails in `document_approval_audit`.
+  - Resilient acquisition & ingestion pipeline (`acquire_and_ingest_document`) with PDF integrity validation, global pipeline concurrency locking, retry mechanisms, and crash recovery of orphaned operations across application restarts.
+  - Chronological metadata sorting parsing issued dates and academic years from PEC document titles (e.g. Senate meetings and academic calendars) with multi-directional ordering.
+  - Document Portal UI overhaul: Prominent co-primary management view for administrators with horizontal filter toolbar, batch approval/ingestion actions, and a floating quarter-size expandable mini chat assistant.
+  - Pytest test database isolation via `tests/conftest.py` automatically routing test executions to a dedicated `iris_test_db` to ensure zero pollution of the live development database.
+  - All automated test suites passing: 38/38 backend crawler tests, 60/60 frontend Vitest tests.
+  - Current verified corpus: **107 authentic PEC catalogue documents**, **31 fully ingested PDFs**, **617 pages**, and **523/523 chunks 100% embedded in pgvector**.
 - [x] **Milestone 0 Completed:**
   - Initialized Git repository; verified `.gitignore` excludes `documents/`, `data/`, `.env`, and virtual environments.
   - Created Python virtual environment (`.venv`) using Windows Python 3.14.7.
