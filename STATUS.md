@@ -21,8 +21,8 @@
   - Chronological metadata sorting parsing issued dates and academic years from PEC document titles (e.g. Senate meetings and academic calendars) with multi-directional ordering.
   - Document Portal UI overhaul: Prominent co-primary management view for administrators with horizontal filter toolbar, batch approval/ingestion actions, and a floating quarter-size expandable mini chat assistant.
   - Pytest test database isolation via `tests/conftest.py` automatically routing test executions to a dedicated `iris_test_db` to ensure zero pollution of the live development database.
-  - All automated test suites passing: 38/38 backend crawler tests, 60/60 frontend Vitest tests.
-  - Current verified corpus: **107 authentic PEC catalogue documents**, **31 fully ingested PDFs**, **617 pages**, and **523/523 chunks 100% embedded in pgvector**.
+  - All automated test suites passing: 46/46 backend crawler tests, 60/60 frontend Vitest tests.
+  - Current verified corpus: **129 authentic PEC catalogue documents** (including all 2023/2024 UG discipline schemes discovered via `CurriculumStructureStrategy`), **31 fully ingested PDFs**, **617 pages**, and **523/523 chunks 100% embedded in pgvector**.
 - [x] **Milestone 0 Completed:**
   - Initialized Git repository; verified `.gitignore` excludes `documents/`, `data/`, `.env`, and virtual environments.
   - Created Python virtual environment (`.venv`) using Windows Python 3.14.7.
